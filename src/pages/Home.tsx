@@ -1,9 +1,13 @@
-function Home(){
-return (
-    <div>
-      <h1>Pagina de inicio - prueba</h1>
-    </div>
+import { Outlet } from "react-router-dom";
+import NavBar from "../components/NavBar";
+
+export default function Home() {
+  return (
+    <>
+      <NavBar />
+      <div className="container mt-4 mx-auto px-4">
+        <Outlet />
+      </div>
+    </>
   );
 }
-
-export default Home
