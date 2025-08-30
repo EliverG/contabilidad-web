@@ -111,17 +111,17 @@ export default function Catalogos() {
                                             <td className="border p-2">{item.centroCosto}</td>
 
                                             <td className="text-center border gap-2">
-                                                <Chip label={item.estado} />
+                                                <Chip label={item.estado} color={item.estado == 'Activo' ? "info":"error"}/>
                                             </td>
 
                                             <td className="border text-center">
-                                                <IconButton aria-label="remoeRedEye" color="primary" title="ver">
+                                                <IconButton aria-label="remoeRedEye" color="inherit" title="ver">
                                                     <RemoveRedEye />
                                                 </IconButton>
-                                                <IconButton aria-label="edit" title="Editar" color="primary">
+                                                <IconButton aria-label="edit" title="Editar" color="warning">
                                                     <Edit />
                                                 </IconButton>
-                                                <IconButton aria-label="delete" title="Eliminar" color="primary">
+                                                <IconButton aria-label="delete" title="Eliminar" color="error">
                                                     <Delete />
                                                 </IconButton>
                                             </td>

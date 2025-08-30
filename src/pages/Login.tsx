@@ -26,8 +26,8 @@ export default function Login() {
         <div className="min-h-screen flex justify-center items-center bg-gray-100 p-4">
             <div className="bg-white shadow-md rounded-lg p-8 w-[350px] flex flex-col items-center">
                 {/* Icono superior */}
-                <div className="bg-blue-600 rounded-full p-3 mb-4 flex justify-center items-center">
-                    <Calculate className="text-white text-[30px]" />
+                <div>
+                    <Calculate />
                 </div>
 
                 <Typography variant="h5" fontWeight="bold" gutterBottom>
