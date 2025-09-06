@@ -1,5 +1,5 @@
-import { Clear, CreateNewFolder, Delete, Edit, RemoveRedEye } from "@mui/icons-material";
-import { Card, CardContent, Chip, IconButton, InputBase, Paper } from "@mui/material";
+import { Clear, NoteAddOutlined, Delete, Edit, RemoveRedEye } from "@mui/icons-material";
+import { Card, CardContent, Button, InputBase, Paper } from "@mui/material";
 import { useState } from 'react';
 import HeaderCard from "../components/HeaderCard";
 
@@ -76,14 +76,14 @@ export default function Catalogos() {
                                 value={busqueda}
                                 onChange={(e) => setBusqueda(e.target.value)}
                             />
-                            <IconButton type="button" sx={{ p: '10px' }} aria-label="search">
+                            <Button type="button" sx={{ p: '10px' }} aria-label="search">
                                 <Clear />
-                            </IconButton>
+                            </Button>
                         </Paper>
 
-                        <IconButton color="primary" title="Cuenta Nueva">
-                            <CreateNewFolder/>
-                        </IconButton>
+                        <Button variant="contained" color="success" title="Cuenta Nueva">
+                            <NoteAddOutlined />
+                        </Button>
                     </div>
 
                     {/* Tabla */}
@@ -110,20 +110,33 @@ export default function Catalogos() {
                                             <td className="border p-2">{item.naturaleza}</td>
                                             <td className="border p-2">{item.centroCosto}</td>
 
-                                            <td className="text-center border gap-2">
-                                                <Chip label={item.estado} color={item.estado == 'Activo' ? "info":"error"}/>
+                                            <td
+                                                className={`text-center border gap-2 ${item.estado === "Activo" ? "text-blue-500" : "text-red-500"
+                                                    }`}
+                                            >
+                                                {item.estado}
                                             </td>
 
-                                            <td className="border text-center">
-                                                <IconButton aria-label="remoeRedEye" color="inherit" title="ver">
-                                                    <RemoveRedEye />
-                                                </IconButton>
-                                                <IconButton aria-label="edit" title="Editar" color="warning">
-                                                    <Edit />
-                                                </IconButton>
-                                                <IconButton aria-label="delete" title="Eliminar" color="error">
-                                                    <Delete />
-                                                </IconButton>
+
+                                            <td className="flex  gap-3 border justify-center">
+                                                <Button
+                                                    variant="contained"
+                                                    size="large"
+                                                    color="inherit"
+                                                ><RemoveRedEye /></Button>
+
+                                                <Button
+                                                    variant="contained"
+                                                    size="large"
+                                                    color="warning"
+                                                ><Edit/></Button>
+
+                                                <Button
+                                                    variant="contained"
+                                                    size="large"
+                                                    color="error"
+                                                ><Delete/></Button>
+
                                             </td>
                                         </tr>
                                     ))

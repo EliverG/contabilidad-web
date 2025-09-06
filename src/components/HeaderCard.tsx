@@ -12,7 +12,7 @@ export default function HeaderCard({ title, subheader }: HeaderCardProps) {
       title={title}
       subheader={subheader}
       sx={{
-        backgroundColor: 'secondary.main',
+        backgroundColor: 'info.main',
         color: 'primary.contrastText',
         '& .MuiCardHeader-subheader': {
           color: 'primary.contrastText',
