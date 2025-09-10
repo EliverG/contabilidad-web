@@ -1,34 +1,33 @@
 import { useState } from 'react';
-import { Card, CardContent, Grid } from '@mui/material';
+import { Card, CardContent, Grid, IconButton, Tooltip } from '@mui/material';
 import { InsertChart, Article, TableChart } from '@mui/icons-material';
 
 import HeaderCard from '../components/HeaderCard';
-import ReporteItem from '../components/ReportItem';
 
 const reportes = [
   {
     id: 'libro-mayor',
     title: 'Libro Mayor por Cuenta',
     description: 'Detalle de movimientos de una cuenta específica con saldo acumulado',
-    icon: <TableChart />,
+    icon: <TableChart fontSize="large" />,
   },
   {
     id: 'balance',
     title: 'Balance de Comprobación',
     description: 'Resumen de saldos de todas las cuentas en un período determinado',
-    icon: <Article />,
+    icon: <Article fontSize="large" />,
   },
   {
     id: 'estado-resultados',
     title: 'Estado de Resultados',
     description: 'Informe de ingresos y gastos para determinar utilidad o pérdida',
-    icon: <InsertChart />,
+    icon: <InsertChart fontSize="large" />,
   },
   {
     id: 'reporte-saldos',
     title: 'Reporte de Saldos',
     description: 'Saldos iniciales, movimientos y saldos finales por cuenta',
-    icon: <InsertChart />,
+    icon: <InsertChart fontSize="large" />,
   },
 ];
 
@@ -44,26 +43,21 @@ export default function Reportes() {
     <Card>
       <HeaderCard
         title="Generador de reportes contables"
-        subheader={
-          <>
-            En este módulo podrá encontrar distintos tipos de reportes para su generación.
-            <br />
-            <br />
-            Seleccione tipo de reporte.
-          </>
-        }
+        subheader="Seleccione el tipo de reporte haciendo clic en un icono."
       />
       <CardContent>
-        <Grid container spacing={2}>
+        <Grid container spacing={3} justifyContent="center">
           {reportes.map((reporte) => (
             <Grid key={reporte.id}>
-              <ReporteItem
-                title={reporte.title}
-                description={reporte.description}
-                icon={reporte.icon}
-                selected={selected === reporte.id}
-                onClick={() => handleSelect(reporte.id)}
-              />
+              <Tooltip title={`${reporte.title} - ${reporte.description}`} arrow>
+                <IconButton
+                  size="large"
+                  color={selected === reporte.id ? "primary" : "default"}
+                  onClick={() => handleSelect(reporte.id)}
+                >
+                  {reporte.icon}
+                </IconButton>
+              </Tooltip>
             </Grid>
           ))}
         </Grid>
