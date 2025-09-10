@@ -111,7 +111,7 @@ export default function Catalogos() {
                                             <td className="border p-2">{item.centroCosto}</td>
 
                                             <td
-                                                className={`text-center border gap-2 ${item.estado === "Activo" ? "text-blue-500" : "text-red-500"
+                                                className={`text-center border gap-2 ${item.estado === "Activo" ? "text-green-600" : "text-red-500"
                                                     }`}
                                             >
                                                 {item.estado}

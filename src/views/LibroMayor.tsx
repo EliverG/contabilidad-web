@@ -1,25 +1,28 @@
-import { 
-    Card, 
-    CardContent, 
-    IconButton, 
-    InputBase, 
-    MenuItem, 
-    Select, 
-    TextField, 
-    Button 
+import {
+    Card,
+    CardContent,
+    IconButton,
+    InputBase,
+    MenuItem,
+    Select,
+    TextField,
+    Button,
+    Menu,
 } from "@mui/material";
-import { 
-    Clear, 
-    Search, 
-    PictureAsPdf, 
-    Print, 
-    FileDownload, 
-    History 
+import {
+    Clear,
+    Search,
+    PictureAsPdf,
+    Print,
+    FileDownload,
+    History,
+    ListOutlined
 } from "@mui/icons-material"; // 👈 Importamos el ícono de reloj
 import HeaderCard from "../components/HeaderCard";
 import { useState } from "react";
 
 import HistorialdeBusquedaModal from "./HistorialdeBusquedaModal"; // 👈 Importar modal nueva
+import React from "react";
 
 export default function LibroMayor() {
     const [cuenta, setCuenta] = useState("");
@@ -29,6 +32,15 @@ export default function LibroMayor() {
     const [proyecto, setProyecto] = useState("Todos");
     const [estado, setEstado] = useState("Todos");
     const [busqueda, setBusqueda] = useState("");
+
+    const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
+    const open = Boolean(anchorEl);
+    const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+        setAnchorEl(event.currentTarget);
+    };
+    const handleClose = () => {
+        setAnchorEl(null)
+    }
 
     // 👇 Estado de modal Historial
     const [historialAbierto, setHistorialAbierto] = useState(false);
@@ -45,38 +57,34 @@ export default function LibroMayor() {
                 <div className="p-6 space-y-6">
 
                     {/* Barra de exportación */}
-                    <div className="flex justify-end gap-2">
-                        {/* 👇 Nuevo botón de Historial */}
-                        <Button 
-                            variant="outlined" 
-                            startIcon={<History />}
-                            className="font-bold"
-                            onClick={abrirHistorial}
+                    <div className="text-end">
+                        <Button
+                            id="basic-button"
+                            aria-controls={open ? 'basic-menu' : undefined}
+                            aria-haspopup="true"
+                            aria-expanded={open ? 'true' : undefined}
+                            onClick={handleClick}
+                            variant="contained"
+                            startIcon={<ListOutlined/>}
                         >
-                            Historial
+                            Opciones
                         </Button>
-
-                        <Button 
-                            variant="outlined" 
-                            startIcon={<FileDownload />}
-                            className="font-bold"
+                        <Menu
+                            id="basic-menu"
+                            anchorEl={anchorEl}
+                            open={open}
+                            onClose={handleClose}
+                            slotProps={{
+                                list: {
+                                    'aria-labelledby': 'basic-button',
+                                },
+                            }}
                         >
-                            Excel
-                        </Button>
-                        <Button 
-                            variant="outlined" 
-                            startIcon={<PictureAsPdf />}
-                            className="font-bold"
-                        >
-                            PDF
-                        </Button>
-                        <Button 
-                            variant="outlined" 
-                            startIcon={<Print />}
-                            className="font-bold"
-                        >
-                            Imprimir
-                        </Button>
+                            <MenuItem onClick={abrirHistorial}><History/>Historial</MenuItem>
+                            <MenuItem onClick={handleClose}><FileDownload/>Excel</MenuItem>
+                            <MenuItem onClick={handleClose}><PictureAsPdf/>PDF</MenuItem>
+                            <MenuItem onClick={handleClose}><Print/>Imprimir</MenuItem>
+                        </Menu>
                     </div>
 
                     {/* Filtros */}
@@ -115,8 +123,8 @@ export default function LibroMayor() {
                                     onChange={(e) => setFechaInicio(e.target.value)}
                                     size="small"
                                     sx={{ width: "auto", minWidth: 150 }}
-                                    InputLabelProps={{ 
-                                        shrink: true, 
+                                    InputLabelProps={{
+                                        shrink: true,
                                         style: { fontWeight: "bold" } // <-- Negrita en "Inicio"
                                     }}
                                 />
@@ -127,14 +135,14 @@ export default function LibroMayor() {
                                     onChange={(e) => setFechaFin(e.target.value)}
                                     size="small"
                                     sx={{ width: "auto", minWidth: 150 }}
-                                    InputLabelProps={{ 
-                                        shrink: true, 
+                                    InputLabelProps={{
+                                        shrink: true,
                                         style: { fontWeight: "bold" } // <-- Negrita en "Fin"
                                     }}
                                 />
                             </div>
                         </div>
-                        
+
                         <div></div>
 
                         {/* Centro de costo */}
