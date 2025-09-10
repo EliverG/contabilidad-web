@@ -123,18 +123,21 @@ export default function Catalogos() {
                                                     variant="contained"
                                                     size="large"
                                                     color="inherit"
+                                                    title="Visualizar"
                                                 ><RemoveRedEye /></Button>
 
                                                 <Button
                                                     variant="contained"
                                                     size="large"
                                                     color="warning"
+                                                    title="Editar"
                                                 ><Edit/></Button>
 
                                                 <Button
                                                     variant="contained"
                                                     size="large"
                                                     color="error"
+                                                    title="Eliminar"
                                                 ><Delete/></Button>
 
                                             </td>
