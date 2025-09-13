@@ -1,7 +1,8 @@
 import { Clear, NoteAddOutlined, Delete, Edit, RemoveRedEye } from "@mui/icons-material";
-import { Card, CardContent, Button, InputBase, Paper } from "@mui/material";
+import { Card, CardContent, Button, InputBase, Paper, Tooltip } from "@mui/material";
 import { useState } from 'react';
 import HeaderCard from "../components/HeaderCard";
+import ModalNuevaCuenta from "../components/AddAccountModal";
 
 const dataEjemplo = [
     {
@@ -50,6 +51,17 @@ export default function Catalogos() {
 
     const [busqueda, setBusqueda] = useState("");
 
+    // ✅ 2. Añade el estado para controlar la visibilidad del modal
+    const [modalOpen, setModalOpen] = useState(false);
+
+    const handleOpenModal = () => {
+        setModalOpen(true);
+    };
+
+    const handleCloseModal = () => {
+        setModalOpen(false);
+    };
+
     const filteredData = dataEjemplo.filter((item) =>
         Object.values(item).some((val) =>
             val.toLowerCase().includes(busqueda.toLowerCase())
@@ -81,9 +93,11 @@ export default function Catalogos() {
                             </Button>
                         </Paper>
 
-                        <Button variant="contained" color="success" title="Cuenta Nueva">
-                            <NoteAddOutlined />
-                        </Button>
+                        <Tooltip title="Crear cuenta nueva">
+                            <Button variant="contained" color="success" title="Cuenta Nueva" onClick={handleOpenModal}>
+                                <NoteAddOutlined />
+                            </Button>
+                        </Tooltip>
                     </div>
 
                     {/* Tabla */}
@@ -119,26 +133,32 @@ export default function Catalogos() {
 
 
                                             <td className="flex  gap-3 border justify-center">
-                                                <Button
-                                                    variant="contained"
-                                                    size="large"
-                                                    color="inherit"
-                                                    title="Visualizar"
-                                                ><RemoveRedEye /></Button>
+                                                <Tooltip title="Visualizar">
 
-                                                <Button
-                                                    variant="contained"
-                                                    size="large"
-                                                    color="warning"
-                                                    title="Editar"
-                                                ><Edit/></Button>
+                                                    <Button
+                                                        variant="contained"
+                                                        size="large"
+                                                        color="inherit"
+                                                        title="Visualizar"
+                                                    ><RemoveRedEye /></Button>
+                                                </Tooltip>
 
-                                                <Button
-                                                    variant="contained"
-                                                    size="large"
-                                                    color="error"
-                                                    title="Eliminar"
-                                                ><Delete/></Button>
+                                                <Tooltip title="Editar">
+
+                                                    <Button
+                                                        variant="contained"
+                                                        size="large"
+                                                        color="warning"
+                                                    ><Edit /></Button>
+                                                </Tooltip>
+
+                                                <Tooltip title="Eliminar">
+                                                    <Button
+                                                        variant="contained"
+                                                        size="large"
+                                                        color="error"
+                                                    ><Delete /></Button>
+                                                </Tooltip>
 
                                             </td>
                                         </tr>
@@ -155,6 +175,8 @@ export default function Catalogos() {
                     </div>
                 </div>
             </CardContent>
+            <ModalNuevaCuenta open={modalOpen} onClose={handleCloseModal} />
         </Card>
+
     )
 }
