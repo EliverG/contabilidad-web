@@ -1,10 +1,11 @@
-import { Clear, NoteAddOutlined, Delete, Edit, RemoveRedEye } from "@mui/icons-material";
+import { Clear, NoteAddOutlined, Delete, Edit } from "@mui/icons-material";
 import { Card, CardContent, Button, InputBase, Paper, Tooltip } from "@mui/material";
 import { useState, useEffect } from "react";
 import HeaderCard from "../components/HeaderCard";
 import ModalNuevaCuenta from "../components/AddAccountModal";
 import { getCuentas, createCuenta, deleteCuenta } from "../services/cuentasApi";
 import type { CuentaContable } from "../interfaces/CuentaContable";
+import Swal from "sweetalert2";
 
 export default function Catalogos() {
   const [busqueda, setBusqueda] = useState("");
@@ -37,14 +38,26 @@ export default function Catalogos() {
   };
 
   const handleDelete = async (id: number) => {
-    if (window.confirm("¿Seguro que deseas eliminar esta cuenta?")) {
-      try {
-        await deleteCuenta(id);
+    Swal.fire({
+      title: "Eliminar registro?",
+      text: "Esta acción no podra ser reversible!",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#3085d6",
+      cancelButtonColor: "#d33",
+      confirmButtonText: "Eliminar",
+      cancelButtonText: "Cancelar"
+    }).then((result) => {
+      if (result.isConfirmed) {
+        Swal.fire({
+          title: "Eliminado!",
+          text: "Cuenta contable ha sido eliminada.",
+          icon: "success"
+        });
+        deleteCuenta(id);
         fetchCuentas();
-      } catch (error) {
-        console.error("Error al eliminar cuenta", error);
       }
-    }
+    });
   };
 
   const filteredData = cuentas.filter((item) =>
@@ -115,9 +128,8 @@ export default function Catalogos() {
                       <td className="border p-2">{item.naturaleza}</td>
                       <td className="border p-2">{item.idCentroCosto}</td>
                       <td
-                        className={`text-center border ${
-                          item.estado === "ACTIVO" ? "text-green-600" : "text-red-500"
-                        }`}
+                        className={`text-center border ${item.estado === "ACTIVO" ? "text-green-600" : "text-red-500"
+                          }`}
                       >
                         {item.estado}
                       </td>

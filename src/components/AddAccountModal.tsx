@@ -103,7 +103,7 @@ const ModalNuevaCuenta: React.FC<ModalNuevaCuentaProps> = ({
         | "GASTO",
       naturaleza: formData.naturaleza.toUpperCase() as "DEUDORA" | "ACREEDORA",
       estado: formData.estadoActivo ? "ACTIVO" : "INACTIVO",
-      idCentroCosto: formData.requiereCentroCosto ? 1 : null,
+      idCentroCosto: formData.requiereCentroCosto ? 1 : 2,
     };
 
     // Solo agregamos id si es edición
