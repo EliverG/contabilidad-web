@@ -54,7 +54,7 @@ export default function LibroMayor() {
           {/* Barra de acciones */}
           <div className="flex justify-end gap-2">
             <Button
-              variant="outlined"
+              variant="contained"
               startIcon={<Add />}
               className="font-bold"
               onClick={abrirNuevo}
@@ -62,7 +62,7 @@ export default function LibroMayor() {
               Nuevo
             </Button>
             <Button
-              variant="outlined"
+              variant="contained"
               startIcon={<History />}
               className="font-bold"
               onClick={abrirHistorial}
@@ -70,21 +70,21 @@ export default function LibroMayor() {
               Historial
             </Button>
             <Button
-              variant="outlined"
+              variant="contained"
               startIcon={<FileDownload />}
               className="font-bold"
             >
               Excel
             </Button>
             <Button
-              variant="outlined"
+              variant="contained"
               startIcon={<PictureAsPdf />}
               className="font-bold"
             >
               PDF
             </Button>
             <Button
-              variant="outlined"
+              variant="contained"
               startIcon={<Print />}
               className="font-bold"
             >
