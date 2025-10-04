@@ -1,6 +1,4 @@
-// ModalNuevaCuenta.tsx
-
-import React from 'react';
+import React from "react";
 import {
   Dialog,
   DialogTitle,
@@ -13,36 +11,67 @@ import {
   FormControl,
   InputLabel,
   Select,
-  SelectChangeEvent,
   FormControlLabel,
-  Checkbox,
-  FormLabel,
   RadioGroup,
   Radio,
   Switch,
-  IconButton,
-  Tooltip
-} from '@mui/material';
-
-import SaveIcon from '@mui/icons-material/Save';
-import CloseIcon from '@mui/icons-material/Close';
+  Tooltip,
+  type SelectChangeEvent,
+} from "@mui/material";
+import SaveIcon from "@mui/icons-material/Save";
+import CloseIcon from "@mui/icons-material/Close";
+import type { CuentaContable } from "../interfaces/CuentaContable";
 
 interface ModalNuevaCuentaProps {
   open: boolean;
   onClose: () => void;
+  onSave: (cuenta: CuentaContable) => void;
+  initialData?: CuentaContable | null;
 }
 
-const ModalNuevaCuenta: React.FC<ModalNuevaCuentaProps> = ({ open, onClose }) => {
+const ModalNuevaCuenta: React.FC<ModalNuevaCuentaProps> = ({
+  open,
+  onClose,
+  onSave,
+  initialData,
+}) => {
   const [formData, setFormData] = React.useState({
-    codigo: '',
-    nombre: '',
-    tipo: '',
-    naturaleza: 'deudora',
-    requiereCentroCosto: true,
+    id: 0,
+    codigo: "",
+    nombre: "",
+    tipo: "",
+    naturaleza: "DEUDORA",
+    requiereCentroCosto: false,
     estadoActivo: true,
   });
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  React.useEffect(() => {
+    if (initialData) {
+      setFormData({
+        id: initialData.id,
+        codigo: initialData.codigo,
+        nombre: initialData.nombre,
+        tipo: initialData.tipo,
+        naturaleza: initialData.naturaleza,
+        requiereCentroCosto: initialData.idCentroCosto !== null,
+        estadoActivo: initialData.estado === "ACTIVO",
+      });
+    } else {
+      setFormData({
+        id: 0,
+        codigo: "",
+        nombre: "",
+        tipo: "",
+        naturaleza: "DEUDORA",
+        requiereCentroCosto: false,
+        estadoActivo: true,
+      });
+    }
+  }, [initialData, open]);
+
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
     const { id, value } = e.target;
     setFormData((prev) => ({ ...prev, [id]: value }));
   };
@@ -55,131 +84,130 @@ const ModalNuevaCuenta: React.FC<ModalNuevaCuentaProps> = ({ open, onClose }) =>
     setFormData((prev) => ({ ...prev, naturaleza: e.target.value }));
   };
 
-  const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleSwitchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, checked } = e.target;
     setFormData((prev) => ({ ...prev, [name]: checked }));
   };
 
   const handleGuardar = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    console.log('Guardando nueva cuenta...', formData);
+
+    const cuentaBase = {
+      codigo: formData.codigo,
+      nombre: formData.nombre,
+      tipo: formData.tipo.toUpperCase() as
+        | "ACTIVO"
+        | "PASIVO"
+        | "PATRIMONIO"
+        | "INGRESO"
+        | "GASTO",
+      naturaleza: formData.naturaleza.toUpperCase() as "DEUDORA" | "ACREEDORA",
+      estado: formData.estadoActivo ? "ACTIVO" : "INACTIVO",
+      idCentroCosto: formData.requiereCentroCosto ? 1 : null,
+    };
+
+    // Solo agregamos id si es edición
+    const cuenta = formData.id > 0 ? { id: formData.id, ...cuentaBase } : cuentaBase;
+
+    onSave(cuenta as CuentaContable);
     onClose();
   };
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      {/* Título con botón de cerrar */}
-      <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        Crear Cuenta Contable
-        <Tooltip title="Cerrar dialogo">
-        <Button onClick={onClose} size='large' variant='contained' color='error' aria-label="Cerrar">
-          <CloseIcon />
-        </Button>
+      <DialogTitle sx={{ display: "flex", justifyContent: "space-between" }}>
+        {initialData ? "Editar Cuenta Contable" : "Crear Cuenta Contable"}
+        <Tooltip title="Cerrar">
+          <Button onClick={onClose} size="small" variant="contained" color="error">
+            <CloseIcon />
+          </Button>
         </Tooltip>
       </DialogTitle>
 
-      {/* Formulario */}
       <Box component="form" onSubmit={handleGuardar}>
         <DialogContent dividers>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-
-            {/* Código y Tipo de Cuenta */}
-            <Box sx={{ display: 'flex', gap: 2 }}>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+            {/* Código y Tipo */}
+            <Box sx={{ display: "flex", gap: 2 }}>
               <TextField
                 required
                 id="codigo"
                 label="Código"
                 value={formData.codigo}
                 onChange={handleChange}
-                variant="outlined"
                 fullWidth
               />
 
               <FormControl required fullWidth>
-                <InputLabel id="tipo-cuenta-label">Tipo de Cuenta</InputLabel>
+                <InputLabel id="tipo-cuenta-label">Tipo</InputLabel>
                 <Select
                   labelId="tipo-cuenta-label"
                   id="tipo"
                   value={formData.tipo}
-                  label="Tipo de Cuenta"
+                  label="Tipo"
                   onChange={handleSelectChange}
                 >
-                  <MenuItem value=""><em>Selecciona tipo</em></MenuItem>
-                  <MenuItem value="Activo">Activo</MenuItem>
-                  <MenuItem value="Pasivo">Pasivo</MenuItem>
-                  <MenuItem value="Patrimonio">Patrimonio</MenuItem>
-                  <MenuItem value="Ingreso">Ingreso</MenuItem>
-                  <MenuItem value="Costo">Costo</MenuItem>
-                  <MenuItem value="Gasto">Gasto</MenuItem>
+                  <MenuItem value="ACTIVO">Activo</MenuItem>
+                  <MenuItem value="PASIVO">Pasivo</MenuItem>
+                  <MenuItem value="PATRIMONIO">Patrimonio</MenuItem>
+                  <MenuItem value="INGRESO">Ingreso</MenuItem>
+                  <MenuItem value="GASTO">Gasto</MenuItem>
                 </Select>
               </FormControl>
             </Box>
 
-            {/* Nombre de la Cuenta */}
+            {/* Nombre */}
             <TextField
               required
               id="nombre"
-              label="Nombre de la Cuenta"
+              label="Nombre"
               value={formData.nombre}
               onChange={handleChange}
-              variant="outlined"
               fullWidth
             />
 
             {/* Naturaleza */}
-            <FormControl component="fieldset">
-              <FormLabel component="legend">Naturaleza</FormLabel>
-              <RadioGroup
-                row
-                value={formData.naturaleza}
-                onChange={handleRadioChange}
-              >
-                <FormControlLabel value="deudora" control={<Radio />} label="Deudora" />
-                <FormControlLabel value="acreedora" control={<Radio />} label="Acreedora" />
+            <FormControl>
+              <RadioGroup row value={formData.naturaleza} onChange={handleRadioChange}>
+                <FormControlLabel value="DEUDORA" control={<Radio />} label="Deudora" />
+                <FormControlLabel value="ACREEDORA" control={<Radio />} label="Acreedora" />
               </RadioGroup>
             </FormControl>
 
-            {/* Opciones adicionales: Checkbox y Switch */}
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap' }}>
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    name="requiereCentroCosto"
-                    checked={formData.requiereCentroCosto}
-                    onChange={handleCheckboxChange}
-                  />
-                }
-                label="Requiere Centro de Costo"
-              />
+            {/* Switches */}
+            <FormControlLabel
+              control={
+                <Switch
+                  name="requiereCentroCosto"
+                  checked={formData.requiereCentroCosto}
+                  onChange={handleSwitchChange}
+                />
+              }
+              label="Requiere Centro de Costo"
+            />
 
-              <FormControlLabel
-                control={
-                  <Switch
-                    name="estadoActivo"
-                    checked={formData.estadoActivo}
-                    onChange={handleCheckboxChange}
-                  />
-                }
-                label="Estado Activo"
-              />
-            </Box>
-
+            <FormControlLabel
+              control={
+                <Switch
+                  name="estadoActivo"
+                  checked={formData.estadoActivo}
+                  onChange={handleSwitchChange}
+                />
+              }
+              label="Estado Activo"
+            />
           </Box>
         </DialogContent>
 
-        {/* Botón de guardar */}
-        <DialogActions sx={{ p: '16px 24px' }}>
-          <Tooltip title="Guardar Cuenta">
-            <Button
-              type="submit"
-              size="large"
-              color="success"
-              variant="contained"
-              startIcon={<SaveIcon />}
-            >
-              Guardar
-            </Button>
-          </Tooltip>
+        <DialogActions>
+          <Button
+            type="submit"
+            variant="contained"
+            color="success"
+            startIcon={<SaveIcon />}
+          >
+            {initialData ? "Actualizar" : "Guardar"}
+          </Button>
         </DialogActions>
       </Box>
     </Dialog>
