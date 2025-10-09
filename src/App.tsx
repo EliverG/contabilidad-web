@@ -8,6 +8,7 @@ const Asientos = lazy(() => import('./views/Asientos'));
 const LibroMayor = lazy(() => import('./views/LibroMayor'));
 const CierreContable = lazy(() => import('./views/CierreContable'));
 const Reportes = lazy(() => import('./views/Reportes'));
+const Empresas = lazy(() => import('./views/Empresas'));
 
 function App() {
   return (
@@ -22,6 +23,7 @@ function App() {
           <Route path="libro" element={<LibroMayor />} />
           <Route path="cierre" element={<CierreContable />} />
           <Route path="reportes" element={<Reportes />} />
+          <Route path="empresas" element={<Empresas />} />
         </Route>
       </Routes>
     </BrowserRouter>

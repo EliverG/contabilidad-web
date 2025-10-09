@@ -23,6 +23,7 @@ import { useState } from "react";
 import HistorialdeBusquedaModal from "./HistorialdeBusquedaModal";
 import NuevoLibroMayorModal from "./NuevoLibroMayorModal";
 
+
 export default function LibroMayor() {
   const [cuenta, setCuenta] = useState<string>("");
   const [fechaInicio, setFechaInicio] = useState<string>("2024-01-01");
