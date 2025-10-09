@@ -1,74 +1,60 @@
-import { Clear, CreateNewFolder, Delete, Edit, RemoveRedEye, NoteAddOutlined } from "@mui/icons-material";
-import {Card,  CardContent,  Chip,  IconButton,  Button,  InputBase,  Paper,  ToggleButtonGroup,  ToggleButton,  Menu,  MenuItem} from "@mui/material";
-import { useState } from 'react';
+import { Clear, Delete, Edit, RemoveRedEye, NoteAddOutlined } from "@mui/icons-material";
+import {
+  Card,
+  CardContent,
+  Chip,
+  IconButton,
+  Button,
+  InputBase,
+  Paper,
+  ToggleButtonGroup,
+  ToggleButton,
+  Snackbar,
+  Alert,
+  CircularProgress
+} from "@mui/material";
+import { useState, useEffect } from 'react';
 import HeaderCard from "../components/HeaderCard";
 import NuevoAsientoModal from './NuevoAsientoModal';
-import { ListOutlined, FileDownload } from "@mui/icons-material";
-
-const dataEjemploAsientos = [
-  {
-    numero: "AST-991",
-    fecha: "14/1/2024",
-    descripcion: "Pago de factura de proveedores",
-    referencia: "RIC-001",
-    debito: "Q 3,490",
-    credito: "Q 3,690",
-    estado: "Contabilizado",
-    usuario: "Juan Pérez",
-    tipo: "Operativa",
-    periodo: "Enero 2024",
-    empresa: "Empresa A"
-  },
-  {
-    numero: "AST-992",
-    fecha: "15/1/2024",
-    descripcion: "Venta de mercadería",
-    referencia: "VEN-001",
-    debito: "Q 580",
-    credito: "Q 0",
-    estado: "Pendiente",
-    usuario: "Juan Pérez",
-    tipo: "Operativa",
-    periodo: "Enero 2024",
-    empresa: "Empresa A"
-  },
-  {
-    numero: "AST-993",
-    fecha: "01/1/2024",
-    descripcion: "Asiento de apertura",
-    referencia: "AP-001",
-    debito: "Q 10,000",
-    credito: "Q 10,000",
-    estado: "Contabilizado",
-    usuario: "Admin",
-    tipo: "Apertura",
-    periodo: "Enero 2024",
-    empresa: "Empresa B"
-  },
-  {
-    numero: "AST-994",
-    fecha: "31/1/2024",
-    descripcion: "Asiento de cierre",
-    referencia: "CI-001",
-    debito: "Q 8,500",
-    credito: "Q 8,500",
-    estado: "Contabilizado",
-    usuario: "Admin",
-    tipo: "Cierre",
-    periodo: "Enero 2024",
-    empresa: "Empresa A"
-  },
-];
+import EditarAsientoModal from './EditarAsientoModal';
+import { asientoContableService } from '../services/asientoContableService';
+import type { AsientoContable } from '../types/AsientoContable';
 
 export default function AsientosContables() {
   const [busqueda, setBusqueda] = useState("");
   const [modalAbierto, setModalAbierto] = useState(false);
-  const [vista, setVista] = useState<"todos" | "apertura" | "cierre" | "operativas" | "ajuste" | "regularizacion">("todos");
-  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [vista, setVista] = useState<"todos" | "apertura" | "cierre" | "operativa" | "ajuste" | "regularizacion">("todos");
+  const [asientos, setAsientos] = useState<AsientoContable[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' });
+  const [modalEditarAbierto, setModalEditarAbierto] = useState(false);
+  const [asientoEditando, setAsientoEditando] = useState<number | null>(null);
 
-  const filteredData = dataEjemploAsientos.filter((item) =>
+  // Cargar asientos al montar el componente
+  useEffect(() => {
+    cargarAsientos();
+  }, []);
+
+  const cargarAsientos = async () => {
+    try {
+      setLoading(true);
+      const data = await asientoContableService.getAll();
+      setAsientos(data);
+    } catch (error) {
+      console.error('Error al cargar asientos:', error);
+      mostrarSnackbar('Error al cargar los asientos contables', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const mostrarSnackbar = (message: string, severity: 'success' | 'error') => {
+    setSnackbar({ open: true, message, severity });
+  };
+
+  const filteredData = asientos.filter((item) =>
     Object.values(item).some((val) =>
-      val.toString().toLowerCase().includes(busqueda.toLowerCase())
+      val?.toString().toLowerCase().includes(busqueda.toLowerCase())
     )
   ).filter(item => {
     if (vista === "todos") return true;
@@ -76,14 +62,86 @@ export default function AsientosContables() {
   });
 
   const abrirModal = () => setModalAbierto(true);
-  const cerrarModal = () => setModalAbierto(false);
-
-  const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
-    setAnchorEl(event.currentTarget);
+  
+  const cerrarModal = (actualizar: boolean = false) => {
+    setModalAbierto(false);
+    if (actualizar) {
+      cargarAsientos();
+      mostrarSnackbar('Asiento creado exitosamente', 'success');
+    }
   };
-  const handleClose = () => {
-    setAnchorEl(null);
+
+  // Función para abrir el modal de edición
+const abrirModalEditar = (id: number) => {
+  setAsientoEditando(id);
+  setModalEditarAbierto(true);
+};
+
+// Función para cerrar el modal de edición
+const cerrarModalEditar = (actualizar: boolean = false) => {
+  setModalEditarAbierto(false);
+  setAsientoEditando(null);
+  if (actualizar) {
+    cargarAsientos(); // Recargar la lista si se actualizó algo
   }
+};
+
+  const handleEliminar = async (id: number) => {
+    if (window.confirm('¿Está seguro de que desea eliminar este asiento?')) {
+      try {
+        await asientoContableService.delete(id);
+        mostrarSnackbar('Asiento eliminado exitosamente', 'success');
+        cargarAsientos();
+      } catch (error) {
+        console.error('Error al eliminar asiento:', error);
+        mostrarSnackbar('Error al eliminar el asiento', 'error');
+      }
+    }
+  };
+
+  const handleCambiarEstado = async (id: number, nuevoEstado: 'BORRADOR' | 'CONTABILIZADO' | 'ANULADO') => {
+    try {
+      await asientoContableService.updateEstado(id, nuevoEstado);
+      mostrarSnackbar('Estado actualizado exitosamente', 'success');
+      cargarAsientos();
+    } catch (error) {
+      console.error('Error al cambiar estado:', error);
+      mostrarSnackbar('Error al cambiar el estado', 'error');
+    }
+  };
+
+  const formatearMoneda = (monto: number) => {
+    return new Intl.NumberFormat('es-GT', {
+      style: 'currency',
+      currency: 'GTQ'
+    }).format(monto);
+  };
+
+  const formatearFecha = (fecha: string) => {
+    return new Date(fecha).toLocaleDateString('es-GT');
+  };
+
+  const getColorEstado = (estado: string) => {
+    switch (estado) {
+      case 'CONTABILIZADO': return 'success';
+      case 'BORRADOR': return 'warning';
+      case 'ANULADO': return 'error';
+      default: return 'default';
+    }
+  };
+
+  const getTipoTexto = (tipo: string) => {
+    const tipos: { [key: string]: string } = {
+      'APERTURA': 'Apertura',
+      'CIERRE': 'Cierre', 
+      'OPERATIVA': 'Operativa',
+      'AJUSTE': 'Ajuste',
+      'REGULARIZACION': 'Regularización',
+      'SIMPLE': 'Simple',
+      'COMPUESTA': 'Compuesta'
+    };
+    return tipos[tipo] || tipo;
+  };
 
   return (
     <>
@@ -94,7 +152,7 @@ export default function AsientosContables() {
         />
         <CardContent>
           <div className="p-6">
-            {/* Selector de vista y botón de exportación */}
+            {/* Selector de vista */}
             <div className="flex justify-between items-center mb-4">
               <ToggleButtonGroup
                 value={vista}
@@ -110,14 +168,6 @@ export default function AsientosContables() {
                 <ToggleButton value="ajuste">Ajuste</ToggleButton>
                 <ToggleButton value="regularizacion">Regularización</ToggleButton>
               </ToggleButtonGroup>
-
-              {/*<Button
-                variant="outlined"
-                color="primary"
-                startIcon={<FileDownload sx={{ fontSize: 20 }} />}
-              >
-                Exportar Todo
-              </Button>*/}
             </div>
 
             <div className="flex justify-between mb-3">
@@ -127,7 +177,7 @@ export default function AsientosContables() {
               >
                 <InputBase
                   sx={{ ml: 1, flex: 1 }}
-                  placeholder="Buscar por número, descripción, referencia o usuario..."
+                  placeholder="Buscar por número, descripción, referencia..."
                   inputProps={{ 'aria-label': 'search' }}
                   value={busqueda}
                   onChange={(e) => setBusqueda(e.target.value)}
@@ -143,30 +193,13 @@ export default function AsientosContables() {
               </Paper>
 
               <Button
-                id="basic-button"
-                aria-controls={anchorEl ? 'basic-menu' : undefined}
-                aria-haspopup="true"
-                aria-expanded={anchorEl ? 'true' : undefined}
-                onClick={handleClick}
+                onClick={abrirModal}
                 variant="contained"
                 color="primary"
                 startIcon={<NoteAddOutlined />}
               >
                 Nueva Partida
               </Button>
-              <Menu
-                id="basic-menu"
-                anchorEl={anchorEl}
-                open={Boolean(anchorEl)}
-                onClose={handleClose}
-                MenuListProps={{
-                  'aria-labelledby': 'basic-button',
-                }}
-              >
-                <MenuItem onClick={() => { handleClose(); abrirModal(); }}>Partida Simple</MenuItem>
-                <MenuItem onClick={handleClose}>Partida Compuesta</MenuItem>
-                <MenuItem onClick={handleClose}>Partida de Ajuste</MenuItem>
-              </Menu>
             </div>
 
             {/* Tabla */}
@@ -179,57 +212,67 @@ export default function AsientosContables() {
                     <th className="border p-2">Descripción</th>
                     <th className="border p-2">Referencia</th>
                     <th className="border p-2">Tipo</th>
-                    <th className="border p-2">Periodo</th>
-                    <th className="border p-2">Empresa</th>
+                    <th className="border p-2">Estado</th>
                     <th className="border p-2">Débito</th>
                     <th className="border p-2">Crédito</th>
-                    <th className="border p-2">Estado</th>
-                    <th className="border p-2">Usuario</th>
                     <th className="border p-2">Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredData.length > 0 ? (
-                    filteredData.map((item, idx) => (
-                      <tr key={idx} className="hover:bg-gray-50">
-                        <td className="border p-2">{item.numero}</td>
-                        <td className="border p-2">{item.fecha}</td>
-                        <td className="border p-2">{item.descripcion}</td>
-                        <td className="border p-2">{item.referencia}</td>
-                        <td className="border p-2">{item.tipo}</td>
-                        <td className="border p-2">{item.periodo}</td>
-                        <td className="border p-2">{item.empresa}</td>
-                        <td className="border p-2">{item.debito}</td>
-                        <td className="border p-2">{item.credito}</td>
-                        <td
-                          className={`text-center border gap-2 ${item.estado === "Contabilizado" ? "text-blue-500" : "text-red-500"
-                            }`}
-                        >
-                          {item.estado}
+                  {loading ? (
+                    <tr>
+                      <td colSpan={9} className="text-center p-4">
+                        <div className="flex justify-center items-center">
+                          <CircularProgress size={24} />
+                          <span className="ml-2">Cargando asientos...</span>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : filteredData.length > 0 ? (
+                    filteredData.map((item) => (
+                      <tr key={item.id} className="hover:bg-gray-50">
+                        <td className="border p-2 font-mono">{item.numeroAsiento}</td>
+                        <td className="border p-2">{formatearFecha(item.fecha)}</td>
+                        <td className="border p-2 max-w-xs" title={item.descripcion}>
+                          {item.descripcion}
                         </td>
-                        <td className="border p-2">{item.usuario}</td>
+                        <td className="border p-2">{item.referencia || '-'}</td>
+                        <td className="border p-2">{getTipoTexto(item.tipo)}</td>
+                        <td className="border p-2 text-center">
+                          <Chip 
+                            label={item.estado} 
+                            color={getColorEstado(item.estado)}
+                            size="small"
+                          />
+                        </td>
+                        <td className="border p-2 text-right font-mono">{formatearMoneda(item.totalDebito)}</td>
+                        <td className="border p-2 text-right font-mono">{formatearMoneda(item.totalCredito)}</td>
                         <td className="flex gap-3 border justify-center p-2">
-                          <Button
+                          {/*<Button
                             variant="contained"
                             size="large"
                             color="inherit"
                             title="Visualizar"
                           >
                             <RemoveRedEye />
-                          </Button>
+                          </Button>*/}
+                          
                           <Button
                             variant="contained"
                             size="large"
                             color="warning"
                             title="Editar"
+                            onClick={() => abrirModalEditar(item.id)}
                           >
                             <Edit />
                           </Button>
+
                           <Button
                             variant="contained"
                             size="large"
                             color="error"
                             title="Eliminar"
+                            onClick={() => handleEliminar(item.id)}
                           >
                             <Delete />
                           </Button>
@@ -238,8 +281,8 @@ export default function AsientosContables() {
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={12} className="text-center p-4">
-                        No se encontraron resultados
+                      <td colSpan={9} className="text-center p-4">
+                        {busqueda ? 'No se encontraron resultados para la búsqueda' : 'No hay asientos contables registrados'}
                       </td>
                     </tr>
                   )}
@@ -249,7 +292,24 @@ export default function AsientosContables() {
           </div>
         </CardContent>
       </Card>
+      
       <NuevoAsientoModal open={modalAbierto} onClose={cerrarModal} />
+
+      <EditarAsientoModal open={modalEditarAbierto} onClose={cerrarModalEditar} asientoId={asientoEditando} />
+      
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+      >
+        <Alert 
+          onClose={() => setSnackbar({ ...snackbar, open: false })} 
+          severity={snackbar.severity}
+          sx={{ width: '100%' }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </>
   );
 }
