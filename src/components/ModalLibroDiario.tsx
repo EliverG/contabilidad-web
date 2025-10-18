@@ -32,7 +32,7 @@ const ModalLibroDiario: React.FC<ModalLibroDiarioProps> = ({
   initialData,
 }) => {
   const [formData, setFormData] = React.useState<Diario>({
-    id: 0,
+    id: null,
     fecha: new Date(),
     descripcion: "",
     debe: 0,
@@ -43,7 +43,7 @@ const ModalLibroDiario: React.FC<ModalLibroDiarioProps> = ({
   React.useEffect(() => {
     if (initialData) {
       setFormData({
-        id: initialData.id ?? 0,
+        id: initialData.id,
         fecha: initialData.fecha,
         descripcion: initialData.descripcion,
         debe: initialData.debe,
@@ -52,7 +52,7 @@ const ModalLibroDiario: React.FC<ModalLibroDiarioProps> = ({
       });
     } else {
       setFormData({
-        id: 0,
+        id: null,
         fecha: new Date(),
         descripcion: "",
         debe: 0,

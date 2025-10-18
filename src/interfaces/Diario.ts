@@ -1,5 +1,5 @@
 export interface Diario {
-  id?: number;
+  id?: number | null;
   fecha: Date;
   descripcion: string;
   debe: number;

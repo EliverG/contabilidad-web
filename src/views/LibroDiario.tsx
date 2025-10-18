@@ -1,4 +1,4 @@
-import { Clear, NoteAddOutlined, Delete, Edit } from "@mui/icons-material";
+import { Clear, NoteAddOutlined, Delete, Edit, PictureAsPdf, FileDownload } from "@mui/icons-material";
 import { Card, CardContent, Button, InputBase, Paper, Tooltip } from "@mui/material";
 import { useState, useEffect } from "react";
 import HeaderCard from "../components/HeaderCard";
@@ -6,6 +6,13 @@ import { getDiario, createDiario, deleteDiario } from "../services/libroDiarioSv
 import Swal from "sweetalert2";
 import type { Diario } from "../interfaces/Diario";
 import ModalLibroDiario from "../components/ModalLibroDiario";
+import * as XLSX from "xlsx";
+import { saveAs } from "file-saver";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+
+// 👇 Agrega esto justo después de los imports
+
 
 export default function Catalogos() {
   const [busqueda, setBusqueda] = useState("");
@@ -66,6 +73,72 @@ export default function Catalogos() {
     )
   );
 
+  // --- Exportar a Excel ---
+  const exportToExcel = () => {
+    if (!filteredData.length) {
+      Swal.fire("Sin datos", "No hay registros para exportar.", "warning");
+      return;
+    }
+
+    const data = filteredData.map((item) => ({
+      Codigo: item.id,
+      Cuenta: item.cuentaContable,
+      Descripcion: item.descripcion,
+      Fecha: item.fecha,
+      Debe: Number(item.debe).toFixed(2),
+      Haber: Number(item.haber).toFixed(2),
+      Total: (Number(item.haber) - Number(item.debe)).toFixed(2),
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(data);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Libro Diario");
+
+    const excelBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
+    const blob = new Blob([excelBuffer], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+
+    saveAs(blob, `Libro_Diario_${new Date().toLocaleDateString()}.xlsx`);
+  };
+
+  // --- Exportar a PDF ---
+  const exportToPDF = () => {
+    if (!filteredData.length) {
+      Swal.fire("Sin datos", "No hay registros para exportar.", "warning");
+      return;
+    }
+
+    const doc = new jsPDF();
+    doc.setFontSize(14);
+    doc.text("Reporte: Libro Diario", 14, 15);
+    doc.setFontSize(10);
+    doc.text(`Generado: ${new Date().toLocaleString()}`, 14, 22);
+
+    // ✅ Aseguramos que todos los valores sean string
+    const tableData: string[][] = filteredData.map((item) => [
+      String(item.id ?? ""),
+      String(item.cuentaContable ?? ""),
+      String(item.descripcion ?? ""),
+      String(item.fecha ?? ""),
+      (Number(item.debe) || 0).toFixed(2),
+      (Number(item.haber) || 0).toFixed(2),
+      ((Number(item.haber) || 0) - (Number(item.debe) || 0)).toFixed(2),
+    ]);
+
+    autoTable(doc, {
+      head: [["Código", "Cuenta", "Descripción", "Fecha", "Debe", "Haber", "Total"]],
+      body: tableData,
+      startY: 28,
+      theme: "grid",
+      styles: { fontSize: 9 },
+      headStyles: { fillColor: [41, 128, 185] },
+    });
+
+    doc.save(`Libro_Diario_${new Date().toLocaleDateString()}.pdf`);
+  };
+
+
   return (
     <Card>
       <HeaderCard
@@ -90,18 +163,45 @@ export default function Catalogos() {
               </Button>
             </Paper>
 
-            <Tooltip title="Crear cuenta nueva">
-              <Button
-                variant="contained"
-                color="success"
-                onClick={() => {
-                  setSelectedCuenta(null);
-                  setModalOpen(true);
-                }}
-              >
-                <NoteAddOutlined />
-              </Button>
-            </Tooltip>
+            <div className="flex gap-2">
+
+              <Tooltip title="Exportar a Excel">
+                <Button
+                  variant="contained"
+                  startIcon={<FileDownload />}
+                  className="font-bold"
+                  onClick={exportToExcel}
+                >
+                  Excel
+                </Button>
+              </Tooltip>
+
+              <Tooltip title="Exportar a PDF">
+                <Button
+                  variant="contained"
+                  startIcon={<PictureAsPdf />}
+                  className="font-bold"
+                  onClick={exportToPDF}
+                >
+                  PDF
+                </Button>
+              </Tooltip>
+
+              <Tooltip title="Crear cuenta nueva">
+                <Button
+                  variant="contained"
+                  color="primary"
+                  onClick={() => {
+                    setSelectedCuenta(null);
+                    setModalOpen(true);
+                  }}
+                  sx={{ minWidth: "40px" }}
+                >
+                  <NoteAddOutlined /> {/* Ícono Agregar */}
+                  Cuenta nueva
+                </Button>
+              </Tooltip>
+            </div>
           </div>
 
           {/* Tabla */}

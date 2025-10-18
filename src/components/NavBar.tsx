@@ -1,4 +1,4 @@
-import { AssuredWorkload, Calculate, CalendarMonth, ImportContacts, InsertChart, RequestPage } from "@mui/icons-material";
+import { AssuredWorkload, Calculate, CalendarMonth, ImportContacts, RequestPage } from "@mui/icons-material";
 import { AppBar, Toolbar, Typography, Button } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 import { Business } from "@mui/icons-material";
@@ -30,9 +30,9 @@ export default function Navbar() {
         <Button onClick={() => navigate('/home/cierre')} color="inherit" startIcon={<CalendarMonth />}>
           Cierre Contable
         </Button>
-        <Button onClick={() => navigate('/home/reportes')} color="inherit" startIcon={<InsertChart />}>
+        {/* <Button onClick={() => navigate('/home/reportes')} color="inherit" startIcon={<InsertChart />}>
           Reportes
-        </Button>
+        </Button> */}
       </Toolbar>
     </AppBar>
   );
