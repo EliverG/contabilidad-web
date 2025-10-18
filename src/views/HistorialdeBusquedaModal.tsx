@@ -235,7 +235,7 @@ export default function HistorialdeBusquedaModal({
             <Tooltip title="Limpiar historial">
               <span>
                 <Button
-                  variant="outlined"
+                  variant="contained"
                   startIcon={<CleaningServices />}
                   onClick={handleLimpiar}
                   disabled={rows.length === 0}
@@ -247,7 +247,7 @@ export default function HistorialdeBusquedaModal({
             </Tooltip>
             <Tooltip title="Exportar historial">
               <Button
-                variant="outlined"
+                variant="contained"
                 startIcon={<FileDownload />}
                 onClick={handleExportar}
                 disabled={filtered.length === 0}
@@ -259,7 +259,7 @@ export default function HistorialdeBusquedaModal({
           </Box>
         </Toolbar>
 
-        <Paper variant="outlined">
+        <Paper variant="contained">
           <TableContainer sx={{ maxHeight: 460 }}>
             <Table stickyHeader size="small" aria-label="tabla-historial">
               <TableHead>
