@@ -18,6 +18,9 @@ export default function Navbar() {
         <Button onClick={() => navigate('/home/asientos')} color="inherit" startIcon={<RequestPage />}>
           Asientos Contables
         </Button>
+        <Button onClick={() => navigate('/home/libro-diario')} color="inherit" startIcon={<Calculate />}>
+          Libro Diario
+        </Button>
         <Button onClick={() => navigate('/home/libro')} color="inherit" startIcon={<Calculate />}>
           Libro Mayor
         </Button>
