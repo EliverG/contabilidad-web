@@ -147,8 +147,8 @@ const cerrarModalEditar = (actualizar: boolean = false) => {
     <>
       <Card>
         <HeaderCard
-          title="Partidas Contables"
-          subheader="En este módulo podrá gestionar todas las partidas contables."
+          title="Asientos Contables"
+          subheader="En este módulo podrá gestionar todos los asientos contables."
         />
         <CardContent>
           <div className="p-6">

@@ -30,6 +30,9 @@ export default function Navbar() {
         <Button onClick={() => navigate('/home/cierre')} color="inherit" startIcon={<CalendarMonth />}>
           Cierre Contable
         </Button>
+        <Button onClick={() => navigate('/home/balance')} color="inherit" startIcon={<ImportContacts />}>
+          Libros
+        </Button>
         {/* <Button onClick={() => navigate('/home/reportes')} color="inherit" startIcon={<InsertChart />}>
           Reportes
         </Button> */}
