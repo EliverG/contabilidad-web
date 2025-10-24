@@ -32,8 +32,12 @@ import {
   ErrorOutline,
   CheckCircle,
   Edit,
+  FileDownload,
+  Add,
+  Delete,
+  Search, // <-- AGREGA ESTE IMPORT
 } from "@mui/icons-material";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import HeaderCard from "../components/HeaderCard";
 import {
   getCierresContables,
@@ -193,6 +197,15 @@ export default function CierreContable() {
   const [wizUsuario, setWizUsuario] = useState<string | number>("");          // <-- nuevo
   const [wizTipo, setWizTipo] = useState<"MENSUAL" | "ANUAL">("MENSUAL");     // <-- nuevo
 
+  // Estado de Resultados
+  const [erDialogOpen, setErDialogOpen] = useState(false);
+  const [erFechaInicio, setErFechaInicio] = useState('2025-01-01');
+  const [erFechaFin, setErFechaFin] = useState('2025-12-31');
+  const [erIncluirDetalle, setErIncluirDetalle] = useState(true);
+  const [erPreview, setErPreview] = useState<any>(null);
+  const openErDialog = () => setErDialogOpen(true);
+  const closeErDialog = () => setErDialogOpen(false);
+
   const openWizard = () => {
     setWizardOpen(true);
     setWizardStep(0);
@@ -235,6 +248,53 @@ export default function CierreContable() {
     }
   };
 
+  // --- Estado de Resultados handlers ---
+  const handlePreviewEstadoResultados = async () => {
+    try {
+      const params = new URLSearchParams({
+        fechaInicio: erFechaInicio,
+        fechaFin: erFechaFin,
+        incluirDetalle: String(erIncluirDetalle),
+      });
+      const resp = await fetch(`/contabilidad/reportes/estado-resultados?${params.toString()}`);
+      if (!resp.ok) throw new Error(`Server responded ${resp.status}`);
+      const data = await resp.json();
+      setErPreview(data);
+    } catch (e: unknown) {
+      setSnackbar({ open: true, message: getErrorMessage(e) || 'Error obteniendo vista previa', severity: 'error' });
+    }
+  };
+
+  const handleExportEstadoResultados = async (formato: 'xlsx' | 'pdf') => {
+    try {
+      const body = {
+        fechaInicio: erFechaInicio,
+        fechaFin: erFechaFin,
+        incluirDetalle: erIncluirDetalle,
+        formato,
+      };
+      const resp = await fetch('/contabilidad/reportes/estado-resultados/export', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (!resp.ok) throw new Error(`Server responded ${resp.status}`);
+      const blob = await resp.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      const filename = formato === 'xlsx' ? 'estado_resultados.xlsx' : 'estado_resultados.pdf';
+      link.setAttribute('download', filename);
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode?.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      setSnackbar({ open: true, message: `Exportado ${filename}`, severity: 'success' });
+    } catch (e: unknown) {
+      setSnackbar({ open: true, message: getErrorMessage(e) || 'Error exportando reporte', severity: 'error' });
+    }
+  };
+
   const confirmClose = async () => {
     if (!wizPeriodo) return;
     setWizLoading(true);
@@ -271,9 +331,17 @@ export default function CierreContable() {
     },
   ];
 
-  const filteredPeriodos = dataPeriodos.filter((item) =>
+  const filteredPeriodos = [...dataPeriodos]
+    .sort((a, b) => Number(b.id) - Number(a.id)) // Ordena por id descendente
+    .filter((item) =>
+      Object.values(item).some((val) =>
+        val?.toString().toLowerCase().includes(busqueda.toLowerCase())
+      )
+    );
+
+  const filteredAsientos = dataAsientosCierre.filter((item) =>
     Object.values(item).some((val) =>
-      val.toString().toLowerCase().includes(busqueda.toLowerCase())
+      val?.toString().toLowerCase().includes(busqueda.toLowerCase())
     )
   );
 
@@ -370,6 +438,14 @@ export default function CierreContable() {
                   <Button
                     variant="contained"
                     color="primary"
+                    onClick={openErDialog}
+                    startIcon={<FileDownload />}
+                  >
+                    Estado Resultados
+                  </Button>
+                  <Button
+                    variant="contained"
+                    color="primary"
                     onClick={openWizard}
                     startIcon={<Add />}
                   >
@@ -397,16 +473,19 @@ export default function CierreContable() {
             </IconButton>
           </Paper>
 
-          {/* Tabla dinámica */}
           {vista === "periodos" ? (
             <div className="overflow-x-auto rounded-lg">
               <table className="w-full border-collapse border border-gray-200">
                 <thead className="bg-gray-100">
                   <tr>
+                    <th className="border p-2">ID</th>
                     <th className="border p-2">Período</th>
-                    <th className="border p-2">Estado</th>
-                    <th className="border p-2">Fecha de Cierre</th>
                     <th className="border p-2">Usuario</th>
+                    <th className="border p-2">Fecha de Cierre</th>
+                    <th className="border p-2">Tipo</th>
+                    <th className="border p-2">Estado</th>
+                    <th className="border p-2">Débito</th>
+                    <th className="border p-2">Crédito</th>
                     <th className="border p-2">Validaciones</th>
                     <th className="border p-2">Acciones</th>
                   </tr>
@@ -415,21 +494,27 @@ export default function CierreContable() {
                   {filteredPeriodos.length > 0 ? (
                     filteredPeriodos.map((item, idx) => (
                       <tr key={idx} className="hover:bg-gray-50 text-sm">
-                        <td className="border p-2">{item.periodo}</td>
+                        <td className="border p-2">{item.id}</td>
+                        <td className="border p-2">{item.idPeriodo}</td>
+                        <td className="border p-2">{item.idUsuario}</td>
+                        <td className="border p-2">{item.fechaCierre}</td>
+                        <td className="border p-2">{item.tipo}</td>
                         <td className="text-center border p-2">
                           <Chip
                             label={item.estado}
-                            color={item.estado === "cerrado" ? "success" : "primary"}
+                            color={item.estado === "CERRADO" ? "success" : item.estado === "VALIDO" ? "primary" : "warning"}
                             size="small"
-                            icon={item.estado === "cerrado" ? <Lock /> : <LockOpen />}
-                          />
+                         />
                         </td>
-                        <td className="border p-2">{item.fechaCierre || "—"}</td>
-                        <td className="border p-2">{item.usuario || "—"}</td>
-                        <td className="text-center border p-2">
-                          {item.errores > 0 ? (
+                        <td className="border p-2">
+                          Q {Number(item.totalDebito).toLocaleString("es-GT", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </td>
+                        <td className="border p-2">
+                          Q {Number(item.totalCredito).toLocaleString("es-GT", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </td>                        <td className="text-center border p-2">
+                          {item.errores && item.errores !== "Sin errores" ? (
                             <Chip
-                              label={`${item.errores} error(es)`}
+                              label={item.errores}
                               color="error"
                               size="small"
                               icon={<ErrorOutline />}
@@ -463,7 +548,7 @@ export default function CierreContable() {
                             </IconButton>
                           ) : (
                             <>
-                              {item.errores > 0 && (
+                              {item.errores && item.errores !== "Sin errores" && (
                                 <IconButton title="Ver errores" color="error" sx={{ backgroundColor: "#f44336", color: "#fff" }}>
                                   <ErrorOutline />
                                 </IconButton>
@@ -543,7 +628,7 @@ export default function CierreContable() {
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={6} className="text-center p-4 text-gray-500">
+                      <td colSpan={10} className="text-center p-4 text-gray-500">
                         No se encontraron resultados
                       </td>
                     </tr>
@@ -603,7 +688,7 @@ export default function CierreContable() {
                       </td>
                     </tr>
                   )}
- </tbody>
+                </tbody>
               </table>
             </div>
           )}
@@ -695,6 +780,53 @@ export default function CierreContable() {
                 Crear
               </Button>
               <Button onClick={handleCloseModal}>Cerrar</Button>
+            </DialogActions>
+          </Dialog>
+
+          {/* Dialog: Estado de Resultados (IA) */}
+          <Dialog open={erDialogOpen} onClose={closeErDialog} maxWidth="md" fullWidth>
+            <DialogTitle>Estado de Resultados (IA)</DialogTitle>
+            <DialogContent dividers>
+              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 12 }}>
+                <TextField
+                  label="Fecha inicio"
+                  type="date"
+                  value={erFechaInicio}
+                  onChange={(e) => setErFechaInicio(e.target.value)}
+                  InputLabelProps={{ shrink: true }}
+                  sx={{ flex: '1 1 180px' }}
+                />
+                <TextField
+                  label="Fecha fin"
+                  type="date"
+                  value={erFechaFin}
+                  onChange={(e) => setErFechaFin(e.target.value)}
+                  InputLabelProps={{ shrink: true }}
+                  sx={{ flex: '1 1 180px' }}
+                />
+                <FormControlLabel
+                  control={<Switch checked={erIncluirDetalle} onChange={(e) => setErIncluirDetalle(e.target.checked)} />}
+                  label="Incluir detalle"
+                />
+              </div>
+
+              <Typography variant="body2" sx={{ mb: 1 }}>
+                Puedes obtener una vista previa JSON o exportar el reporte en XLSX o PDF.
+              </Typography>
+
+              {erPreview ? (
+                <pre style={{ whiteSpace: 'pre-wrap', background: '#f5f5f5', padding: 12, borderRadius: 6, maxHeight: 320, overflow: 'auto' }}>
+                  {JSON.stringify(erPreview, null, 2)}
+                </pre>
+              ) : (
+                <Typography variant="caption" color="textSecondary">No hay vista previa. Presiona "Previsualizar".</Typography>
+              )}
+            </DialogContent>
+            <DialogActions>
+              <Button onClick={handlePreviewEstadoResultados} variant="outlined">Previsualizar</Button>
+              <Button onClick={() => handleExportEstadoResultados('xlsx')} variant="contained" color="primary">Exportar XLSX</Button>
+              <Button onClick={() => handleExportEstadoResultados('pdf')} variant="contained" color="secondary">Exportar PDF</Button>
+              <Button onClick={closeErDialog}>Cerrar</Button>
             </DialogActions>
           </Dialog>
 
