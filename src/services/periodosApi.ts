@@ -1,7 +1,7 @@
 import axios from "axios";
 import type { PeriodoContable } from "../interfaces/PeriodoContable";
 
-const API_BASE = "http://localhost:3000/contabilidad/periodo-contable";
+const API_BASE = "/contabilidad/periodo-contable";
 
 export const getPeriodosAll = () => axios.get<PeriodoContable[]>(`${API_BASE}/all`);
 export const getPeriodoById = (id: number) => axios.get<PeriodoContable>(`${API_BASE}/${id}`);
