@@ -16,6 +16,9 @@ import type { Empresa } from "../interfaces/Empresa";
 import type { PeriodoContable } from "../interfaces/PeriodoContable";
 import { getEmpresas } from "../services/empresaApi";
 import { getPeriodosAll, createOrUpdatePeriodo, deletePeriodo } from "../services/periodosApi";
+import { PictureAsPdf } from "@mui/icons-material";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 // ==== utilidades fecha dd/MM/yyyy <-> ISO ====
 const pad2 = (n: number) => (n < 10 ? `0${n}` : `${n}`);
@@ -38,6 +41,30 @@ function formatDDMMYYYY(input: string | Date): string {
   if (!dt) return "";
   return `${pad2(dt.getDate())}/${pad2(dt.getMonth() + 1)}/${dt.getFullYear()}`;
 }
+// Primer y último día del mes actual
+function firstDayOfCurrentMonth(): Date {
+  const d = new Date();
+  return new Date(d.getFullYear(), d.getMonth(), 1);
+}
+function lastDayOfCurrentMonth(): Date {
+  const d = new Date();
+  // día 0 del siguiente mes = último día del mes actual
+  return new Date(d.getFullYear(), d.getMonth() + 1, 0);
+}
+
+const toISOFromEdit = (s?: string | Date): string => {
+  if (!s) return "";
+  if (s instanceof Date) return toISODate(s);
+  const d = parseDDMMYYYY(s);
+  return d ? toISODate(d) : "";
+};
+
+// Convierte el value del input (ISO) -> dd/MM/yyyy y lo deja listo en el editRow.
+const toDDMMFromISO = (iso: string): string => {
+  if (!iso) return "";
+  const d = new Date(iso);
+  return formatDDMMYYYY(d);
+};
 
 type Props = {
   open: boolean;
@@ -72,12 +99,16 @@ const AddPeriodoContable: React.FC<Props> = ({ open, onClose }) => {
 
   // ---- handlers formulario embebido ----
   const resetForm = () => {
+    const ini = firstDayOfCurrentMonth();
+    const fin = lastDayOfCurrentMonth();
+
     setEditRow({
       id: 0,
       idEmpresa: selectedEmpresa?.id ?? 0,
-      nombrePeriodo: "",
-      fechaInicio: "",
-      fechaFin: "",
+      nombrePeriodo: "", // o si quieres: `${pad2(ini.getMonth()+1)}/${ini.getFullYear()}`
+      // guardamos como dd/MM/yyyy porque tu saveForm ya lo espera así
+      fechaInicio: formatDDMMYYYY(ini),
+      fechaFin: formatDDMMYYYY(fin),
       estado: "ABIERTO",
     });
     setIsEditing(false);
@@ -167,6 +198,103 @@ const AddPeriodoContable: React.FC<Props> = ({ open, onClose }) => {
     }
   };
 
+  const handleExportPDF = () => {
+    if (!selectedEmpresa || filteredPeriodos.length === 0) {
+      alert("Seleccione una empresa y asegúrese de que existan períodos.");
+      return;
+    }
+
+    // PDF A4 apaisado con márgenes pequeños
+    const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const MARGIN = { top: 56, right: 28, bottom: 40, left: 28 };
+
+    const title = "Períodos Contables";
+    const subt = `Empresa: ${selectedEmpresa.nombre} — Total períodos: ${filteredPeriodos.length}`;
+
+    // Header / Footer por página
+    const drawHeader = () => {
+      doc.setFontSize(16);
+      doc.setTextColor(0, 0, 0);
+      doc.text(title, MARGIN.left, 30);
+
+      doc.setFontSize(10);
+      doc.setTextColor(90, 90, 90);
+      doc.text(subt, MARGIN.left, 44);
+
+      doc.setDrawColor(220);
+      doc.line(MARGIN.left, 50, pageWidth - MARGIN.right, 50);
+    };
+    const drawFooter = () => {
+      const str = `Página ${doc.getNumberOfPages()}`;
+      doc.setFontSize(9);
+      doc.setTextColor(120);
+      doc.text(str, pageWidth - MARGIN.right, pageHeight - 16, { align: "right" });
+    };
+
+    drawHeader();
+
+    // Tabla
+    autoTable(doc, {
+      margin: MARGIN,
+      startY: 56,
+      styles: { fontSize: 10, cellPadding: 4 },
+      headStyles: { fillColor: [25, 118, 210], textColor: 255, halign: "center", fontStyle: "bold" },
+      head: [["Nombre del período", "Fecha inicio", "Fecha fin", "Estado"]],
+      body: filteredPeriodos.map((p) => [
+        p.nombrePeriodo,
+        typeof p.fechaInicio === "string" ? p.fechaInicio : formatDDMMYYYY(p.fechaInicio),
+        typeof p.fechaFin === "string" ? p.fechaFin : formatDDMMYYYY(p.fechaFin),
+        p.estado,
+      ]),
+      columnStyles: {
+        0: { cellWidth: 280 },
+        1: { cellWidth: 120, halign: "center" },
+        2: { cellWidth: 120, halign: "center" },
+        3: { cellWidth: 110, halign: "center" },
+      },
+      didDrawPage: () => {
+        drawHeader();
+        drawFooter();
+      },
+      rowPageBreak: "auto",
+    });
+
+    const abiertos = filteredPeriodos.filter(p => p.estado === "ABIERTO").length;
+    const cerrados = filteredPeriodos.filter(p => p.estado === "CERRADO").length;
+    const total    = filteredPeriodos.length;
+
+    // ¿Dónde escribir el resumen?
+    let y = (doc as any).lastAutoTable.finalY + 18;
+    if (y > pageHeight - MARGIN.bottom - 40) {
+      doc.addPage();
+      drawHeader();
+      drawFooter();
+      y = MARGIN.top;
+    }
+
+    // Título del bloque
+    doc.setFontSize(12);
+    doc.setTextColor(0, 0, 0);
+    doc.text("Resumen", MARGIN.left, y);
+
+    // Etiquetas + valores con color
+    y += 18;
+    doc.setFontSize(11);
+    doc.setTextColor(46,125,50);   // verde
+    doc.text(`ABIERTO: ${abiertos}`, MARGIN.left, y);
+
+    doc.setTextColor(198,40,40);   // rojo
+    doc.text(`CERRADO: ${cerrados}`, MARGIN.left + 140, y);
+
+    doc.setTextColor(33,33,33);    // neutro
+    doc.text(`TOTAL: ${total}`, MARGIN.left + 300, y);
+
+    doc.save(`Periodos_${selectedEmpresa.nombre}.pdf`);
+  };
+
+
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="md">
       <DialogTitle sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
@@ -199,25 +327,44 @@ const AddPeriodoContable: React.FC<Props> = ({ open, onClose }) => {
           />
         </Box>
 
-        {/* Acciones + tabla */}
+        {/* Acciones + tabla */}     
         <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1 }}>
           <Box sx={{ fontSize: 14, opacity: 0.9 }}>
             {selectedEmpresa ? `Empresa: ${selectedEmpresa.nombre}` : "Seleccione una empresa"}
           </Box>
-          <Tooltip title="Nuevo período">
-            <span>
-              <Button
-                variant="contained"
-                size="small"
-                startIcon={<AddIcon />}
-                onClick={handleNuevo}
-                disabled={!selectedEmpresa}
-              >
-                Nuevo
-              </Button>
-            </span>
-          </Tooltip>
+
+          <Box sx={{ display: "flex", gap: 1 }}>
+            <Tooltip title="Exportar PDF">
+              <span>
+                <Button
+                  variant="contained"
+                  color="primary"
+                  size="small"
+                  startIcon={<PictureAsPdf />}
+                  onClick={handleExportPDF}
+                  disabled={!selectedEmpresa || filteredPeriodos.length === 0}
+                >
+                  PDF
+                </Button>
+              </span>
+            </Tooltip>
+
+            <Tooltip title="Nuevo período">
+              <span>
+                <Button
+                  variant="contained"
+                  size="small"
+                  startIcon={<AddIcon />}
+                  onClick={handleNuevo}
+                  disabled={!selectedEmpresa}
+                >
+                  Nuevo
+                </Button>
+              </span>
+            </Tooltip>
+          </Box>
         </Box>
+
 
         <Table size="small">
           <TableHead>
@@ -292,21 +439,41 @@ const AddPeriodoContable: React.FC<Props> = ({ open, onClose }) => {
             </Box>
 
             <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2 }}>
+              {/* Fecha inicio */}
               <TextField
                 required
-                label="Fecha inicio (dd/mm/aaaa)"
-                placeholder="dd/mm/aaaa"
-                value={editRow?.fechaInicio ?? ""}
-                onChange={handleChange("fechaInicio")}
-                inputProps={{ inputMode: "numeric", pattern: "\\d{2}/\\d{2}/\\d{4}", maxLength: 10 }}
+                type="date"
+                label="Fecha inicio"
+                InputLabelProps={{ shrink: true }}
+                value={toISOFromEdit(editRow?.fechaInicio as any)}
+                onChange={(e) =>
+                  setEditRow(prev => ({
+                    ...(prev ?? {}),
+                    // guardamos en dd/MM/yyyy para mantener la lógica actual
+                    fechaInicio: toDDMMFromISO(e.target.value),
+                  }))
+                }
+                inputProps={{
+                  max: toISOFromEdit(editRow?.fechaFin as any) || undefined, // rango coherente
+                }}
               />
+
+              {/* Fecha fin */}
               <TextField
                 required
-                label="Fecha fin (dd/mm/aaaa)"
-                placeholder="dd/mm/aaaa"
-                value={editRow?.fechaFin ?? ""}
-                onChange={handleChange("fechaFin")}
-                inputProps={{ inputMode: "numeric", pattern: "\\d{2}/\\d{2}/\\d{4}", maxLength: 10 }}
+                type="date"
+                label="Fecha fin"
+                InputLabelProps={{ shrink: true }}
+                value={toISOFromEdit(editRow?.fechaFin as any)}
+                onChange={(e) =>
+                  setEditRow(prev => ({
+                    ...(prev ?? {}),
+                    fechaFin: toDDMMFromISO(e.target.value),
+                  }))
+                }
+                inputProps={{
+                  min: toISOFromEdit(editRow?.fechaInicio as any) || undefined,
+                }}
               />
             </Box>
 
