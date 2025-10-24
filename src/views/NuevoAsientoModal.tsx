@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -12,32 +12,24 @@ import {
   Typography,
   Divider,
   IconButton,
-  Box
+  Box,
+  CircularProgress,
+  Alert
 } from '@mui/material';
 import { Close, Add, Delete } from '@mui/icons-material';
 import { asientoContableService } from '../services/asientoContableService';
 import type { AsientoContable } from '../types/AsientoContable';
 
+// ✅ SERVICIOS REALES
+import { empresaService, type Empresa } from '../services/empresaService';
+import { periodoService, type Periodo } from '../services/periodoService';
+import { getCuentas } from '../services/cuentasApi'; // ✅ NUEVO SERVICIO
+import type { CuentaContable } from '../interfaces/CuentaContable'; // ✅ NUEVO TIPO
+
 interface Props {
   open: boolean;
   onClose: (actualizar?: boolean) => void;
 }
-
-const periodosContables = [
-  { id: 1, nombre: "Enero 2024" },
-  { id: 2, nombre: "Febrero 2024" },
-  { id: 3, nombre: "Marzo 2024" },
-  { id: 4, nombre: "Abril 2024" },
-  { id: 5, nombre: "Mayo 2024" },
-  { id: 6, nombre: "Junio 2024" }
-];
-
-const empresas = [
-  { id: 1, nombre: "Empresa A" },
-  { id: 2, nombre: "Empresa B" },
-  { id: 3, nombre: "Empresa C" },
-  { id: 4, nombre: "Empresa D" }
-];
 
 const tiposPartida = [
   { value: 'OPERATIVA', label: 'Operativa' },
@@ -49,29 +41,22 @@ const tiposPartida = [
   { value: 'COMPUESTA', label: 'Compuesta' }
 ];
 
-const cuentasContables = [
-  { id: 1, codigo: "1", nombre: "ACTIVO" },
-  { id: 2, codigo: "11", nombre: "ACTIVO CORRIENTE" },
-  { id: 3, codigo: "1101", nombre: "Caja General" },
-  { id: 4, codigo: "1102", nombre: "Bancos" },
-  { id: 5, codigo: "1201", nombre: "Cuentas por Cobrar" },
-  { id: 6, codigo: "2", nombre: "PASIVO" },
-  { id: 7, codigo: "21", nombre: "PASIVO CORRIENTE" },
-  { id: 8, codigo: "2101", nombre: "Cuentas por Pagar" },
-  { id: 9, codigo: "3", nombre: "PATRIMONIO" },
-  { id: 10, codigo: "4", nombre: "INGRESOS" },
-  { id: 11, codigo: "5", nombre: "GASTOS" }
-];
-
 const NuevoAsientoModal: React.FC<Props> = ({ open, onClose }) => {
+  // ✅ ESTADOS PARA DATOS INICIALES
+  const [empresas, setEmpresas] = useState<Empresa[]>([]);
+  const [periodos, setPeriodos] = useState<Periodo[]>([]);
+  const [cuentas, setCuentas] = useState<CuentaContable[]>([]); // ✅ NUEVO ESTADO
+  const [cargandoDatos, setCargandoDatos] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
   const [formData, setFormData] = useState({
     numeroAsiento: `AST-${Math.floor(Math.random() * 1000)}`,
     fecha: new Date().toISOString().split('T')[0],
     descripcion: '',
     referencia: '',
     estado: 'BORRADOR' as 'BORRADOR' | 'CONTABILIZADO' | 'ANULADO',
-    idPeriodo: 1,
-    idEmpresa: 1,
+    idPeriodo: 0,
+    idEmpresa: 0,
     tipo: 'OPERATIVA' as 'APERTURA' | 'CIERRE' | 'OPERATIVA' | 'AJUSTE' | 'REGULARIZACION' | 'SIMPLE' | 'COMPUESTA',
     lineas: [
       { idCuenta: 0, descripcion: '', debito: 0, credito: 0 }
@@ -79,6 +64,78 @@ const NuevoAsientoModal: React.FC<Props> = ({ open, onClose }) => {
   });
 
   const [loading, setLoading] = useState(false);
+
+  // ✅ FUNCIÓN PARA CARGAR DATOS INICIALES - ACTUALIZADA
+  const cargarDatosIniciales = async () => {
+    try {
+      setCargandoDatos(true);
+      setError(null);
+
+      console.log('🔄 Cargando datos iniciales para NuevoAsientoModal...');
+
+      const [empresasData, periodosData, cuentasData] = await Promise.all([
+        empresaService.getAll(),
+        periodoService.getAll(),
+        getCuentas() // ✅ NUEVA LLAMADA
+      ]);
+
+      console.log('📊 Datos recibidos en modal:', {
+        empresas: empresasData,
+        periodos: periodosData,
+        cuentas: cuentasData
+      });
+
+      setEmpresas(empresasData);
+      setPeriodos(periodosData);
+      // ✅ AJUSTA SEGÚN LA ESTRUCTURA DE TU API
+      setCuentas(cuentasData.data || cuentasData); 
+
+      // Establecer valores por defecto solo si hay datos
+      if (empresasData.length > 0 && periodosData.length > 0) {
+        setFormData(prev => ({
+          ...prev,
+          idEmpresa: empresasData[0].id,
+          idPeriodo: periodosData[0].id
+        }));
+      }
+
+    } catch (error: any) {
+      console.error('❌ Error al cargar datos iniciales en modal:', error);
+      setError('Error al cargar datos iniciales: ' + error.message);
+      setEmpresas([]);
+      setPeriodos([]);
+      setCuentas([]);
+    } finally {
+      setCargandoDatos(false);
+    }
+  };
+
+  // ✅ EFFECT PARA CARGAR DATOS AL ABRIR EL MODAL
+  useEffect(() => {
+    if (open) {
+      cargarDatosIniciales();
+    }
+  }, [open]);
+
+  // ✅ RESET FORM CUANDO SE CIERRA EL MODAL
+  useEffect(() => {
+    if (!open) {
+      setFormData({
+        numeroAsiento: `AST-${Math.floor(Math.random() * 1000)}`,
+        fecha: new Date().toISOString().split('T')[0],
+        descripcion: '',
+        referencia: '',
+        estado: 'BORRADOR',
+        idPeriodo: empresas.length > 0 ? empresas[0].id : 0,
+        idEmpresa: periodos.length > 0 ? periodos[0].id : 0,
+        tipo: 'OPERATIVA',
+        lineas: [
+          { idCuenta: 0, descripcion: '', debito: 0, credito: 0 }
+        ]
+      });
+      setError(null);
+    }
+  }, [open, empresas, periodos]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -149,6 +206,12 @@ const NuevoAsientoModal: React.FC<Props> = ({ open, onClose }) => {
       return;
     }
 
+    // Validar empresa y periodo seleccionados
+    if (formData.idEmpresa === 0 || formData.idPeriodo === 0) {
+      alert('Debe seleccionar una empresa y un período contable');
+      return;
+    }
+
     try {
       setLoading(true);
       
@@ -159,8 +222,8 @@ const NuevoAsientoModal: React.FC<Props> = ({ open, onClose }) => {
         descripcion: formData.descripcion,
         referencia: formData.referencia || null,
         estado: formData.estado,
-        idPeriodo: 1, //formData.idPeriodo,
-        idEmpresa: 1, //formData.idEmpresa,
+        idPeriodo: formData.idPeriodo,
+        idEmpresa: formData.idEmpresa,
         idUsuario: 1, // Esto debería venir del contexto de autenticación
         tipo: formData.tipo,
         totalDebito: totalDebito,
@@ -190,6 +253,13 @@ const NuevoAsientoModal: React.FC<Props> = ({ open, onClose }) => {
       </DialogTitle>
       
       <DialogContent dividers>
+        {/* ✅ MOSTRAR ERROR SI EXISTE */}
+        {error && (
+          <Alert severity="error" sx={{ mb: 2 }}>
+            {error}
+          </Alert>
+        )}
+
         <Grid container spacing={2}>
           {/* Primera fila: Número, Fecha, Tipo */}
           <Grid item xs={4}>
@@ -263,41 +333,69 @@ const NuevoAsientoModal: React.FC<Props> = ({ open, onClose }) => {
               placeholder="FAC-001, DOC-123, etc."
             />
           </Grid>
+          
+          {/* ✅ PERIODO CON DATOS REALES */}
           <Grid item xs={4}>
-            <TextField
-              fullWidth
-              select
-              label="Periodo *"
-              name="idPeriodo"
-              value={formData.idPeriodo}
-              onChange={handleSelectChange}
-              margin="dense"
-              size="small"
-            >
-              {periodosContables.map((periodo) => (
-                <MenuItem key={periodo.id} value={periodo.id}>
-                  {periodo.nombre}
-                </MenuItem>
-              ))}
-            </TextField>
+            {cargandoDatos ? (
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <CircularProgress size={20} />
+                <Typography variant="body2">Cargando periodos...</Typography>
+              </Box>
+            ) : (
+              <TextField
+                fullWidth
+                select
+                label="Periodo *"
+                name="idPeriodo"
+                value={formData.idPeriodo}
+                onChange={handleSelectChange}
+                margin="dense"
+                size="small"
+                disabled={periodos.length === 0}
+              >
+                {periodos.length === 0 ? (
+                  <MenuItem value={0}>No hay periodos disponibles</MenuItem>
+                ) : (
+                  periodos.map((periodo) => (
+                    <MenuItem key={periodo.id} value={periodo.id}>
+                      {periodo.nombre}
+                    </MenuItem>
+                  ))
+                )}
+              </TextField>
+            )}
           </Grid>
+          
+          {/* ✅ EMPRESA CON DATOS REALES */}
           <Grid item xs={4}>
-            <TextField
-              fullWidth
-              select
-              label="Empresa *"
-              name="idEmpresa"
-              value={formData.idEmpresa}
-              onChange={handleSelectChange}
-              margin="dense"
-              size="small"
-            >
-              {empresas.map((empresa) => (
-                <MenuItem key={empresa.id} value={empresa.id}>
-                  {empresa.nombre}
-                </MenuItem>
-              ))}
-            </TextField>
+            {cargandoDatos ? (
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <CircularProgress size={20} />
+                <Typography variant="body2">Cargando empresas...</Typography>
+              </Box>
+            ) : (
+              <TextField
+                fullWidth
+                select
+                label="Empresa *"
+                name="idEmpresa"
+                value={formData.idEmpresa}
+                onChange={handleSelectChange}
+                margin="dense"
+                size="small"
+                disabled={empresas.length === 0}
+              >
+                {empresas.length === 0 ? (
+                  <MenuItem value={0}>No hay empresas disponibles</MenuItem>
+                ) : (
+                  empresas.map((empresa) => (
+                    <MenuItem key={empresa.id} value={empresa.id}>
+                      {empresa.nombre}
+                    </MenuItem>
+                  ))
+                )}
+              </TextField>
+            )}
           </Grid>
           
           {/* Cuarta fila: Estado */}
@@ -327,24 +425,34 @@ const NuevoAsientoModal: React.FC<Props> = ({ open, onClose }) => {
         {formData.lineas.map((linea, index) => (
           <Paper key={index} style={{ padding: '15px', marginBottom: '10px' }}>
             <Grid container spacing={2} alignItems="flex-start">
-              {/* Cuenta */}
+              {/* ✅ CUENTA CON DATOS REALES DEL BACKEND */}
               <Grid item xs={5}>
-                <TextField
-                  fullWidth
-                  select
-                  label="Cuenta *"
-                  value={linea.idCuenta}
-                  onChange={(e) => handleLineChange(index, 'idCuenta', parseInt(e.target.value))}
-                  margin="dense"
-                  size="small"
-                >
-                  <MenuItem value={0}>Seleccionar cuenta</MenuItem>
-                  {cuentasContables.map((cuenta) => (
-                    <MenuItem key={cuenta.id} value={cuenta.id}>
-                      {cuenta.codigo} - {cuenta.nombre}
+                {cargandoDatos ? (
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <CircularProgress size={20} />
+                    <Typography variant="body2">Cargando cuentas...</Typography>
+                  </Box>
+                ) : (
+                  <TextField
+                    fullWidth
+                    select
+                    label="Cuenta *"
+                    value={linea.idCuenta}
+                    onChange={(e) => handleLineChange(index, 'idCuenta', parseInt(e.target.value))}
+                    margin="dense"
+                    size="small"
+                    disabled={cuentas.length === 0}
+                  >
+                    <MenuItem value={0}>
+                      {cuentas.length === 0 ? 'No hay cuentas disponibles' : 'Seleccionar cuenta'}
                     </MenuItem>
-                  ))}
-                </TextField>
+                    {cuentas.map((cuenta) => (
+                      <MenuItem key={cuenta.id} value={cuenta.id}>
+                        {cuenta.codigo} - {cuenta.nombre}
+                      </MenuItem>
+                    ))}
+                  </TextField>
+                )}
               </Grid>
               
               {/* Débito y Crédito */}
@@ -458,7 +566,7 @@ const NuevoAsientoModal: React.FC<Props> = ({ open, onClose }) => {
           onClick={handleSubmit} 
           variant="contained" 
           color="primary"
-          disabled={diferencia !== 0 || loading}
+          disabled={diferencia !== 0 || loading || cargandoDatos || empresas.length === 0 || periodos.length === 0 || cuentas.length === 0}
         >
           {loading ? 'Creando...' : 'Crear Asiento'}
         </Button>

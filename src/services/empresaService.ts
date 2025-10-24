@@ -1,5 +1,5 @@
 // services/empresaService.ts
-const API_BASE_URL = 'http://localhost:3000/contabilidad/empresas';
+const API_BASE_URL = 'http://localhost:3000/contabilidad/empresa';
 
 export interface Empresa {
   id: number;
@@ -28,12 +28,20 @@ export const empresaService = {
       console.log('✅ Empresas obtenidas (RAW):', data);
       
       // CORREGIR: Mapear de MAYÚSCULAS a minúsculas
-      const empresasMapeadas = data.map((empresa: any) => ({
+      {/*const empresasMapeadas = data.map((empresa: any) => ({
         id: empresa.ID,
         nombre: empresa.NOMBRE,
         ruc: empresa.RUC,
         estado: empresa.ESTADO
+      }));*/}
+
+      const empresasMapeadas = data.map((empresa: any) => ({
+        id: empresa.id,
+        nombre: empresa.nombre,
+        ruc: empresa.ruc,
+        estado: empresa.estado
       }));
+
       
       console.log('✅ Empresas mapeadas:', empresasMapeadas);
       return empresasMapeadas;

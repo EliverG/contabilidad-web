@@ -11,7 +11,12 @@ import {
   ToggleButton,
   Snackbar,
   Alert,
-  CircularProgress
+  CircularProgress,
+  Box,
+  TextField,
+  MenuItem,
+  Typography,
+  Grid
 } from "@mui/material";
 import { useState, useEffect } from 'react';
 import HeaderCard from "../components/HeaderCard";
@@ -19,6 +24,10 @@ import NuevoAsientoModal from './NuevoAsientoModal';
 import EditarAsientoModal from './EditarAsientoModal';
 import { asientoContableService } from '../services/asientoContableService';
 import type { AsientoContable } from '../types/AsientoContable';
+
+// ✅ SERVICIOS REALES PARA EMPRESAS Y PERIODOS
+import { empresaService, type Empresa } from '../services/empresaService';
+import { periodoService, type Periodo } from '../services/periodoService';
 
 export default function AsientosContables() {
   const [busqueda, setBusqueda] = useState("");
@@ -30,10 +39,49 @@ export default function AsientosContables() {
   const [modalEditarAbierto, setModalEditarAbierto] = useState(false);
   const [asientoEditando, setAsientoEditando] = useState<number | null>(null);
 
-  // Cargar asientos al montar el componente
+  // ✅ NUEVOS ESTADOS PARA FILTROS
+  const [empresas, setEmpresas] = useState<Empresa[]>([]);
+  const [periodos, setPeriodos] = useState<Periodo[]>([]);
+  const [filtroEmpresa, setFiltroEmpresa] = useState<number>(0); // 0 = Todas
+  const [filtroPeriodo, setFiltroPeriodo] = useState<number>(0); // 0 = Todos
+  const [cargandoDatos, setCargandoDatos] = useState(true);
+
+  // Cargar datos iniciales y asientos al montar el componente
   useEffect(() => {
-    cargarAsientos();
+    cargarDatosIniciales();
   }, []);
+
+  // ✅ FUNCIÓN PARA CARGAR DATOS INICIALES
+  const cargarDatosIniciales = async () => {
+    try {
+      setCargandoDatos(true);
+      console.log('🔄 Cargando datos iniciales para AsientosContables...');
+
+      const [empresasData, periodosData] = await Promise.all([
+        empresaService.getAll(),
+        periodoService.getAll()
+      ]);
+
+      console.log('📊 Datos recibidos:', {
+        empresas: empresasData,
+        periodos: periodosData
+      });
+
+      setEmpresas(empresasData);
+      setPeriodos(periodosData);
+
+      // Cargar asientos después de tener los datos iniciales
+      await cargarAsientos();
+
+    } catch (error: any) {
+      console.error('❌ Error al cargar datos iniciales:', error);
+      mostrarSnackbar('Error al cargar empresas y periodos: ' + error.message, 'error');
+      setEmpresas([]);
+      setPeriodos([]);
+    } finally {
+      setCargandoDatos(false);
+    }
+  };
 
   const cargarAsientos = async () => {
     try {
@@ -52,13 +100,23 @@ export default function AsientosContables() {
     setSnackbar({ open: true, message, severity });
   };
 
-  const filteredData = asientos.filter((item) =>
-    Object.values(item).some((val) =>
+  // ✅ FILTRADO COMBINADO (búsqueda + tipo + empresa + periodo)
+  const filteredData = asientos.filter((item) => {
+    // Filtro de búsqueda en texto
+    const coincideBusqueda = Object.values(item).some((val) =>
       val?.toString().toLowerCase().includes(busqueda.toLowerCase())
-    )
-  ).filter(item => {
-    if (vista === "todos") return true;
-    return item.tipo?.toLowerCase() === vista.toLowerCase();
+    );
+
+    // Filtro por tipo de asiento
+    const coincideTipo = vista === "todos" || item.tipo?.toLowerCase() === vista.toLowerCase();
+
+    // ✅ Filtro por empresa
+    const coincideEmpresa = filtroEmpresa === 0 || item.idEmpresa === filtroEmpresa;
+
+    // ✅ Filtro por periodo
+    const coincidePeriodo = filtroPeriodo === 0 || item.idPeriodo === filtroPeriodo;
+
+    return coincideBusqueda && coincideTipo && coincideEmpresa && coincidePeriodo;
   });
 
   const abrirModal = () => setModalAbierto(true);
@@ -72,19 +130,19 @@ export default function AsientosContables() {
   };
 
   // Función para abrir el modal de edición
-const abrirModalEditar = (id: number) => {
-  setAsientoEditando(id);
-  setModalEditarAbierto(true);
-};
+  const abrirModalEditar = (id: number) => {
+    setAsientoEditando(id);
+    setModalEditarAbierto(true);
+  };
 
-// Función para cerrar el modal de edición
-const cerrarModalEditar = (actualizar: boolean = false) => {
-  setModalEditarAbierto(false);
-  setAsientoEditando(null);
-  if (actualizar) {
-    cargarAsientos(); // Recargar la lista si se actualizó algo
-  }
-};
+  // Función para cerrar el modal de edición
+  const cerrarModalEditar = (actualizar: boolean = false) => {
+    setModalEditarAbierto(false);
+    setAsientoEditando(null);
+    if (actualizar) {
+      cargarAsientos(); // Recargar la lista si se actualizó algo
+    }
+  };
 
   const handleEliminar = async (id: number) => {
     if (window.confirm('¿Está seguro de que desea eliminar este asiento?')) {
@@ -108,6 +166,14 @@ const cerrarModalEditar = (actualizar: boolean = false) => {
       console.error('Error al cambiar estado:', error);
       mostrarSnackbar('Error al cambiar el estado', 'error');
     }
+  };
+
+  // ✅ FUNCIÓN PARA LIMPIAR TODOS LOS FILTROS
+  const limpiarFiltros = () => {
+    setBusqueda("");
+    setVista("todos");
+    setFiltroEmpresa(0);
+    setFiltroPeriodo(0);
   };
 
   const formatearMoneda = (monto: number) => {
@@ -143,6 +209,17 @@ const cerrarModalEditar = (actualizar: boolean = false) => {
     return tipos[tipo] || tipo;
   };
 
+  // ✅ OBTENER NOMBRES PARA MOSTRAR EN LA TABLA
+  const obtenerNombreEmpresa = (idEmpresa: number) => {
+    const empresa = empresas.find(e => e.id === idEmpresa);
+    return empresa ? empresa.nombre : 'N/A';
+  };
+
+  const obtenerNombrePeriodo = (idPeriodo: number) => {
+    const periodo = periodos.find(p => p.id === idPeriodo);
+    return periodo ? periodo.nombre : 'N/A';
+  };
+
   return (
     <>
       <Card>
@@ -152,7 +229,80 @@ const cerrarModalEditar = (actualizar: boolean = false) => {
         />
         <CardContent>
           <div className="p-6">
-            {/* Selector de vista */}
+            {/* ✅ NUEVA SECCIÓN DE FILTROS AVANZADOS */}
+            <Paper sx={{ p: 3, mb: 3 }}>
+              <Typography variant="h6" gutterBottom>
+                Filtros Avanzados
+              </Typography>
+              
+              {cargandoDatos ? (
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                  <CircularProgress size={20} />
+                  <Typography>Cargando empresas y periodos...</Typography>
+                </Box>
+              ) : (
+                <Grid container spacing={2} alignItems="center">
+                  {/* Filtro por Empresa */}
+                  <Grid item xs={12} md={3}>
+                    <TextField
+                      fullWidth
+                      select
+                      label="Filtrar por Empresa"
+                      value={filtroEmpresa}
+                      onChange={(e) => setFiltroEmpresa(Number(e.target.value))}
+                      size="small"
+                    >
+                      <MenuItem value={0}>Todas las empresas</MenuItem>
+                      {empresas.map((empresa) => (
+                        <MenuItem key={empresa.id} value={empresa.id}>
+                          {empresa.nombre}
+                        </MenuItem>
+                      ))}
+                    </TextField>
+                  </Grid>
+
+                  {/* Filtro por Periodo */}
+                  <Grid item xs={12} md={3}>
+                    <TextField
+                      fullWidth
+                      select
+                      label="Filtrar por Periodo"
+                      value={filtroPeriodo}
+                      onChange={(e) => setFiltroPeriodo(Number(e.target.value))}
+                      size="small"
+                    >
+                      <MenuItem value={0}>Todos los periodos</MenuItem>
+                      {periodos.map((periodo) => (
+                        <MenuItem key={periodo.id} value={periodo.id}>
+                          {periodo.nombre}
+                        </MenuItem>
+                      ))}
+                    </TextField>
+                  </Grid>
+
+                  {/* Botón limpiar filtros */}
+                  <Grid item xs={12} md={2}>
+                    <Button
+                      fullWidth
+                      variant="outlined"
+                      onClick={limpiarFiltros}
+                      startIcon={<Clear />}
+                    >
+                      Limpiar Filtros
+                    </Button>
+                  </Grid>
+
+                  {/* Contador de resultados */}
+                  <Grid item xs={12} md={4}>
+                    <Typography variant="body2" color="textSecondary" align="right">
+                      Mostrando {filteredData.length} de {asientos.length} asientos
+                    </Typography>
+                  </Grid>
+                </Grid>
+              )}
+            </Paper>
+
+            {/* Selector de vista por tipo (EXISTENTE) */}
             <div className="flex justify-between items-center mb-4">
               <ToggleButtonGroup
                 value={vista}
@@ -170,6 +320,7 @@ const cerrarModalEditar = (actualizar: boolean = false) => {
               </ToggleButtonGroup>
             </div>
 
+            {/* Búsqueda y botón nuevo (EXISTENTE) */}
             <div className="flex justify-between mb-3">
               <Paper
                 component="form"
@@ -202,7 +353,7 @@ const cerrarModalEditar = (actualizar: boolean = false) => {
               </Button>
             </div>
 
-            {/* Tabla */}
+            {/* Tabla ACTUALIZADA con nuevas columnas */}
             <div className="overflow-x-auto rounded-lg">
               <table className="w-full border-collapse border border-gray-200">
                 <thead className="bg-gray-100">
@@ -212,6 +363,8 @@ const cerrarModalEditar = (actualizar: boolean = false) => {
                     <th className="border p-2">Descripción</th>
                     <th className="border p-2">Referencia</th>
                     <th className="border p-2">Tipo</th>
+                    <th className="border p-2">Empresa</th> {/* ✅ NUEVA COLUMNA */}
+                    <th className="border p-2">Periodo</th> {/* ✅ NUEVA COLUMNA */}
                     <th className="border p-2">Estado</th>
                     <th className="border p-2">Débito</th>
                     <th className="border p-2">Crédito</th>
@@ -221,7 +374,7 @@ const cerrarModalEditar = (actualizar: boolean = false) => {
                 <tbody>
                   {loading ? (
                     <tr>
-                      <td colSpan={9} className="text-center p-4">
+                      <td colSpan={11} className="text-center p-4">
                         <div className="flex justify-center items-center">
                           <CircularProgress size={24} />
                           <span className="ml-2">Cargando asientos...</span>
@@ -238,6 +391,8 @@ const cerrarModalEditar = (actualizar: boolean = false) => {
                         </td>
                         <td className="border p-2">{item.referencia || '-'}</td>
                         <td className="border p-2">{getTipoTexto(item.tipo)}</td>
+                        <td className="border p-2">{obtenerNombreEmpresa(item.idEmpresa)}</td> {/* ✅ NUEVA COLUMNA */}
+                        <td className="border p-2">{obtenerNombrePeriodo(item.idPeriodo)}</td> {/* ✅ NUEVA COLUMNA */}
                         <td className="border p-2 text-center">
                           <Chip 
                             label={item.estado} 
@@ -248,15 +403,6 @@ const cerrarModalEditar = (actualizar: boolean = false) => {
                         <td className="border p-2 text-right font-mono">{formatearMoneda(item.totalDebito)}</td>
                         <td className="border p-2 text-right font-mono">{formatearMoneda(item.totalCredito)}</td>
                         <td className="flex gap-3 border justify-center p-2">
-                          {/*<Button
-                            variant="contained"
-                            size="large"
-                            color="inherit"
-                            title="Visualizar"
-                          >
-                            <RemoveRedEye />
-                          </Button>*/}
-                          
                           <Button
                             variant="contained"
                             size="large"
@@ -281,8 +427,11 @@ const cerrarModalEditar = (actualizar: boolean = false) => {
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={9} className="text-center p-4">
-                        {busqueda ? 'No se encontraron resultados para la búsqueda' : 'No hay asientos contables registrados'}
+                      <td colSpan={11} className="text-center p-4">
+                        {busqueda || filtroEmpresa !== 0 || filtroPeriodo !== 0 || vista !== "todos" 
+                          ? 'No se encontraron resultados para los filtros aplicados' 
+                          : 'No hay asientos contables registrados'
+                        }
                       </td>
                     </tr>
                   )}
