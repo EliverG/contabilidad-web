@@ -11,14 +11,14 @@ import { saveAs } from "file-saver";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
-// 👇 Agrega esto justo después de los imports
-
-
 export default function Catalogos() {
   const [busqueda, setBusqueda] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [cuentas, setCuentas] = useState<Diario[]>([]);
   const [selectedCuenta, setSelectedCuenta] = useState<Diario | null>(null);
+
+  const [fechaInicio, setFechaInicio] = useState<string>("");
+  const [fechaFin, setFechaFin] = useState<string>("");
 
   useEffect(() => {
     fetchLibroDiario();
@@ -35,7 +35,7 @@ export default function Catalogos() {
 
   const handleSaveCuenta = async (cuenta: Diario) => {
     try {
-      await createDiario(cuenta); // mismo endpoint para crear y actualizar
+      await createDiario(cuenta);
       fetchLibroDiario();
       setModalOpen(false);
       setSelectedCuenta(null);
@@ -56,34 +56,35 @@ export default function Catalogos() {
       cancelButtonText: "Cancelar",
     }).then((result) => {
       if (result.isConfirmed) {
-        Swal.fire({
-          title: "Eliminado!",
-          text: "Cuenta contable ha sido eliminada.",
-          icon: "success",
-        });
+        Swal.fire("Eliminado!", "Cuenta contable ha sido eliminada.", "success");
         deleteDiario(id);
         fetchLibroDiario();
       }
     });
   };
 
-  const filteredData = cuentas.filter((item) =>
-    Object.values(item).some((val) =>
-      val?.toString().toLowerCase().includes(busqueda.toLowerCase())
-    )
-  );
+  const filteredData = cuentas.filter((item) => {
+    const fechaItem = item.fecha
+      ? new Date(item.fecha).toISOString().slice(0, 10)
+      : "";
 
-  // --- Exportar a Excel ---
+    const cumpleBusqueda = Object.values(item).some((val) =>
+      val?.toString().toLowerCase().includes(busqueda.toLowerCase())
+    );
+
+    const cumpleFechaInicio = fechaInicio ? fechaItem >= fechaInicio : true;
+    const cumpleFechaFin = fechaFin ? fechaItem <= fechaFin : true;
+
+    return cumpleBusqueda && cumpleFechaInicio && cumpleFechaFin;
+  });
+
   const exportToExcel = () => {
-    if (!filteredData.length) {
-      Swal.fire("Sin datos", "No hay registros para exportar.", "warning");
-      return;
-    }
+    if (!filteredData.length) return Swal.fire("Sin datos", "No hay registros para exportar.", "warning");
 
     const data = filteredData.map((item) => ({
-      Codigo: item.id,
+      Código: item.id,
       Cuenta: item.cuentaContable,
-      Descripcion: item.descripcion,
+      Descripción: item.descripcion,
       Fecha: item.fecha,
       Debe: Number(item.debe).toFixed(2),
       Haber: Number(item.haber).toFixed(2),
@@ -95,19 +96,12 @@ export default function Catalogos() {
     XLSX.utils.book_append_sheet(workbook, worksheet, "Libro Diario");
 
     const excelBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
-    const blob = new Blob([excelBuffer], {
-      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    });
-
+    const blob = new Blob([excelBuffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
     saveAs(blob, `Libro_Diario_${new Date().toLocaleDateString()}.xlsx`);
   };
 
-  // --- Exportar a PDF ---
   const exportToPDF = () => {
-    if (!filteredData.length) {
-      Swal.fire("Sin datos", "No hay registros para exportar.", "warning");
-      return;
-    }
+    if (!filteredData.length) return Swal.fire("Sin datos", "No hay registros para exportar.", "warning");
 
     const doc = new jsPDF();
     doc.setFontSize(14);
@@ -115,8 +109,7 @@ export default function Catalogos() {
     doc.setFontSize(10);
     doc.text(`Generado: ${new Date().toLocaleString()}`, 14, 22);
 
-    // ✅ Aseguramos que todos los valores sean string
-    const tableData: string[][] = filteredData.map((item) => [
+    const tableData = filteredData.map((item) => [
       String(item.id ?? ""),
       String(item.cuentaContable ?? ""),
       String(item.descripcion ?? ""),
@@ -138,16 +131,16 @@ export default function Catalogos() {
     doc.save(`Libro_Diario_${new Date().toLocaleDateString()}.pdf`);
   };
 
-
   return (
     <Card>
       <HeaderCard
         title="Libro Diario"
-        subheader="En este módulo se encuentran los diarios de las cuenas contables."
+        subheader="En este módulo se encuentran los diarios de las cuentas contables."
       />
       <CardContent>
         <div className="p-6">
-          <div className="flex justify-between mb-3">
+          <div className="flex justify-between mb-3 gap-4 flex-wrap">
+
             <Paper
               component="form"
               sx={{ p: "2px 4px", display: "flex", alignItems: "center", width: 400 }}
@@ -163,30 +156,43 @@ export default function Catalogos() {
               </Button>
             </Paper>
 
-            <div className="flex gap-2">
+            <div className="flex gap-3 items-center bg-gray-50 border px-3 py-2 rounded-md">
+              <label>Desde:</label>
+              <input
+                type="date"
+                value={fechaInicio}
+                onChange={(e) => setFechaInicio(e.target.value)}
+                className="border p-1 rounded"
+              />
+              <label>Hasta:</label>
+              <input
+                type="date"
+                value={fechaFin}
+                onChange={(e) => setFechaFin(e.target.value)}
+                className="border p-1 rounded"
+              />
+              <Button
+                onClick={() => {
+                  setFechaInicio("");
+                  setFechaFin("");
+                }}
+                sx={{ p: "8px" }}
+              >
+                <Clear />
+              </Button>
+            </div>
 
+            <div className="flex gap-2">
               <Tooltip title="Exportar a Excel">
-                <Button
-                  variant="contained"
-                  startIcon={<FileDownload />}
-                  className="font-bold"
-                  onClick={exportToExcel}
-                >
+                <Button variant="contained" startIcon={<FileDownload />} className="font-bold" onClick={exportToExcel}>
                   Excel
                 </Button>
               </Tooltip>
-
               <Tooltip title="Exportar a PDF">
-                <Button
-                  variant="contained"
-                  startIcon={<PictureAsPdf />}
-                  className="font-bold"
-                  onClick={exportToPDF}
-                >
+                <Button variant="contained" startIcon={<PictureAsPdf />} className="font-bold" onClick={exportToPDF}>
                   PDF
                 </Button>
               </Tooltip>
-
               <Tooltip title="Crear cuenta nueva">
                 <Button
                   variant="contained"
@@ -195,16 +201,14 @@ export default function Catalogos() {
                     setSelectedCuenta(null);
                     setModalOpen(true);
                   }}
-                  sx={{ minWidth: "40px" }}
                 >
-                  <NoteAddOutlined /> {/* Ícono Agregar */}
+                  <NoteAddOutlined />
                   Cuenta nueva
                 </Button>
               </Tooltip>
             </div>
           </div>
 
-          {/* Tabla */}
           <div className="overflow-x-auto rounded-lg">
             <table className="w-full border-collapse border border-gray-200">
               <thead className="bg-gray-100">
@@ -215,7 +219,7 @@ export default function Catalogos() {
                   <th className="border p-2">Fecha</th>
                   <th className="border p-2">Debe</th>
                   <th className="border p-2">Haber</th>
-                  <th className="border p-2">Total</th> {/* Nueva columna */}
+                  <th className="border p-2">Total</th>
                   <th className="border p-2">Acciones</th>
                 </tr>
               </thead>
@@ -225,7 +229,6 @@ export default function Catalogos() {
                     const debe = Number(item.debe) || 0;
                     const haber = Number(item.haber) || 0;
                     const total = haber - debe;
-
                     return (
                       <tr key={item.id} className="hover:bg-gray-50">
                         <td className="border p-2">{item.id}</td>
@@ -234,30 +237,18 @@ export default function Catalogos() {
                         <td className="border p-2">{item.fecha.toString()}</td>
                         <td className="border p-2">{debe.toFixed(2)}</td>
                         <td className="border p-2">{haber.toFixed(2)}</td>
-                        <td className="border p-2 font-semibold">
-                          {total.toFixed(2)}
-                        </td>
+                        <td className="border p-2 font-semibold">{total.toFixed(2)}</td>
                         <td className="flex gap-3 border justify-center">
                           <Tooltip title="Editar">
-                            <Button
-                              variant="contained"
-                              size="small"
-                              color="warning"
-                              onClick={() => {
-                                setSelectedCuenta(item);
-                                setModalOpen(true);
-                              }}
-                            >
+                            <Button variant="contained" size="small" color="warning" onClick={() => {
+                              setSelectedCuenta(item);
+                              setModalOpen(true);
+                            }}>
                               <Edit />
                             </Button>
                           </Tooltip>
                           <Tooltip title="Eliminar">
-                            <Button
-                              variant="contained"
-                              size="small"
-                              color="error"
-                              onClick={() => handleDelete(item.id!)}
-                            >
+                            <Button variant="contained" size="small" color="error" onClick={() => handleDelete(item.id!)}>
                               <Delete />
                             </Button>
                           </Tooltip>
@@ -278,7 +269,6 @@ export default function Catalogos() {
         </div>
       </CardContent>
 
-      {/* Modal para crear / editar */}
       <ModalLibroDiario
         open={modalOpen}
         onClose={() => {
